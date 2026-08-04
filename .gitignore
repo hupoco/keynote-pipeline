@@ -1,0 +1,18 @@
+node_modules/
+.env
+deck/dist/
+.DS_Store
+
+# generated media — regenerate with the gen:* scripts, don't commit
+assets/generated/
+assets/voiceover/
+assets/sfx/
+assets/music/
+assets/shots/
+
+# video export and its scratch dir — regenerable from the deck
+*.mp4
+*-master.mp4
+*-markers.json
+.export-*/
+*.pdf

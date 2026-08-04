@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keynote — starter deck</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   FOUNDATIONS — swap these for your brand. Everything downstream reads from these tokens.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+:root{
+  --accent:#fe4a0b; --accent-tint:#fff0eb;
+  --ink:#161618; --paper:#fff; --paper-2:#faf9f7; --muted:#6b7280;
+  --line:#e5e7eb; --line-2:#d9dbdf;
+  /* No embedded webfont in this starter — system stack keeps it zero-network out of the box.
+     When you have a real typeface, embed the .woff2 in assets/fonts/ and point --jak/--body at it
+     (see docs/design-system.md). One family for both is a deliberate constraint, not a shortcut:
+     it forces every hierarchy decision onto weight/size/spacing instead of a second face. */
+  --jak: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif;
+  --body: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--ink);overflow:hidden;height:100%}
+body{font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+/* ── slide wrapper ─────────────────────────────────────────────────────────────────────────── */
+.stage{position:relative;width:100vw;height:100vh;background:var(--ink)}
+.slide{position:absolute;inset:0;background:var(--paper);display:flex;align-items:center;
+  justify-content:center;opacity:0;visibility:hidden;transition:opacity .3s ease}
+.slide.active{opacity:1;visibility:visible;z-index:1}
+.wrap{width:min(1120px,86vw);padding:48px}
+.wrap.center{text-align:center;margin:0 auto}
+.wrap.split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.wrap.split.rev{direction:rtl}
+.wrap.split>*{direction:ltr}
+.dark{background:#0a0a0b;color:#f5f5f5}
+.dark .muted{color:#9a9a9f}
+
+/* ── type ──────────────────────────────────────────────────────────────────────────────────── */
+.kicker{font:600 13px/1 var(--jak);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  margin:0 0 18px}
+.kicker.c{text-align:center}
+.display{font:700 clamp(48px,7vw,96px)/1.02 var(--jak);letter-spacing:-.02em;margin:0 0 20px}
+.h-xl{font:600 clamp(34px,4.6vw,56px)/1.08 var(--jak);letter-spacing:-.015em;margin:0 0 18px}
+.h-lg{font:600 clamp(26px,3.2vw,36px)/1.15 var(--jak);margin:0 0 14px}
+.lead{font:400 19px/1.55 var(--body);color:var(--muted);max-width:52ch;margin:0}
+.wrap.center .lead{margin-inline:auto}
+.grad{background:linear-gradient(90deg,var(--accent),#ff8a5c);-webkit-background-clip:text;
+  background-clip:text;color:transparent}
+.muted{color:var(--muted)}
+.big-quote{font:500 clamp(28px,3.6vw,42px)/1.3 var(--jak);letter-spacing:-.01em;max-width:20ch}
+
+/* ── small components ─────────────────────────────────────────────────────────────────────── */
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid var(--line);
+  border-radius:999px;font:600 12px/1 var(--jak);color:var(--muted)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.chipset{display:flex;gap:8px;flex-wrap:wrap}
+.gchip{font:600 11px/1 ui-monospace,monospace;letter-spacing:.02em;padding:6px 10px;
+  border-radius:8px;background:var(--paper-2);border:1px solid var(--line);color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:16px;background:var(--paper);
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.gen-media{border-radius:20px;overflow:hidden;border:1px solid var(--line);
+  aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--accent-tint),var(--paper-2));color:var(--muted);
+  font:600 13px/1.4 var(--jak);text-align:center;padding:24px}
+.gen-media.glow{box-shadow:0 24px 60px -20px rgba(254,74,11,.35)}
+
+/* ── motion engine ─────────────────────────────────────────────────────────────────────────
+   Add an entry class + optional stagger delay (--d) to anything that should build in when its
+   slide becomes active. The engine below re-triggers these on every slide.active toggle, so a
+   revisited slide replays its build instead of sitting there fully formed. */
+.a-up,.a-in,.a-pop,.a-slide{opacity:0}
+.slide.active .a-up{animation:a-up .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0s)}
+.slide.active .a-in{animation:a-in .5s ease both;animation-delay:var(--d,0s)}
+.slide.active .a-pop{animation:a-pop .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d,0s)}
+.slide.active .a-slide{animation:a-slide .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0s)}
+@keyframes a-up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes a-in{from{opacity:0}to{opacity:1}}
+@keyframes a-pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes a-slide{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .a-up,.a-in,.a-pop,.a-slide{opacity:1!important;animation:none!important;transform:none!important}
+}
+
+/* Self-drawing SVG lines/paths: add class="edge" + attribute pathLength="1" on the <path>. */
+.edge{stroke-dasharray:1;stroke-dashoffset:1;transition:none}
+.slide.active .edge{animation:edge-draw .8s ease both;animation-delay:var(--d,0s)}
+@keyframes edge-draw{to{stroke-dashoffset:0}}
+
+/* Graph node pop — pair with a-pop, e.g. class="gnode a-pop" */
+.gnode circle{transform-origin:center}
+
+/* ── chrome (nav / progress / counter) — hidden in #clean, used for live presenting ─────────── */
+.chrome{position:fixed;inset:auto 0 0 0;display:flex;align-items:center;gap:16px;
+  padding:14px 22px;font:600 12px/1 var(--jak);color:#fff;z-index:10;pointer-events:none}
+.chrome .bar{flex:1;height:2px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}
+.chrome .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s ease}
+.chrome .count{opacity:.75;font-variant-numeric:tabular-nums}
+body.is-clean .chrome{display:none}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- Slide 1 — cold open -->
+  <section class="slide" data-slide="0">
+    <div class="wrap center">
+      <p class="kicker c a-in" style="--d:.05s">Keynote pipeline</p>
+      <h1 class="display a-up" style="--d:.15s">Ship the <span class="grad">story</span>,<br>not just the product.</h1>
+      <p class="lead a-up" style="--d:.3s;margin-inline:auto">
+        A self-contained HTML deck, a scroll-driven product page that runs the same deck live,
+        and a short teaser cut — all from one source of truth.
+      </p>
+    </div>
+  </section>
+
+  <!-- Slide 2 — split: copy + a "gen-media" slot (swap for scripts/gen-image.mjs output) -->
+  <section class="slide" data-slide="1">
+    <div class="wrap split">
+      <div>
+        <p class="kicker a-in" style="--d:.05s">The idea</p>
+        <h2 class="h-xl a-up" style="--d:.15s">One narrative,<br>three surfaces.</h2>
+        <p class="lead a-up" style="--d:.3s">
+          Author the story once as slides. The product page re-runs those same slides pinned to
+          scroll — nothing is re-told, so nothing drifts. The teaser cuts the highlights.
+        </p>
+        <div class="chipset a-in" style="--d:.45s;margin-top:22px">
+          <span class="gchip">deck/</span><span class="gchip">site/</span><span class="gchip">short/</span>
+        </div>
+      </div>
+      <div class="gen-media glow a-pop" style="--d:.3s">
+        Drop a generated still here —<br>
+        <code>node scripts/gen-image.mjs -p "…" -o hero.png</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3 — diagram: self-drawing edges + graph nodes -->
+  <section class="slide" data-slide="2">
+    <div class="wrap center">
+      <p class="kicker c a-in" style="--d:.05s">The engine</p>
+      <h2 class="h-xl a-up" style="--d:.1s">Motion that reads as intentional.</h2>
+      <svg viewBox="0 0 640 160" width="640" height="160" style="margin-top:24px;overflow:visible">
+        <path class="edge" pathLength="1" d="M60,80 H290" stroke="var(--line-2)" stroke-width="2" fill="none" style="--d:.4s"/>
+        <path class="edge" pathLength="1" d="M350,80 H580" stroke="var(--line-2)" stroke-width="2" fill="none" style="--d:.55s"/>
+        <g class="gnode a-pop" style="--d:.25s"><circle cx="60" cy="80" r="22" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="2"/></g>
+        <g class="gnode a-pop" style="--d:.7s"><circle cx="320" cy="80" r="22" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="2"/></g>
+        <g class="gnode a-pop" style="--d:.9s"><circle cx="580" cy="80" r="22" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="2"/></g>
+      </svg>
+      <p class="lead a-in" style="--d:1.05s;margin-inline:auto;margin-top:8px">
+        <code>.edge</code> + <code>pathLength="1"</code> self-draws; <code>.gnode.a-pop</code> pops in on arrival.
+      </p>
+    </div>
+  </section>
+
+  <!-- Slide 4 — dark register close -->
+  <section class="slide dark" data-slide="3">
+    <div class="wrap center">
+      <p class="pill a-in" style="--d:.1s"><span class="dot"></span>fork this</p>
+      <p class="big-quote a-up" style="--d:.25s;margin-inline:auto">
+        Replace these four slides. Keep the engine.
+      </p>
+      <p class="lead a-in" style="--d:.45s;margin-inline:auto;color:#9a9a9f">
+        See <code>docs/pipeline-guide.md</code> for the full loop: generate media, wire the site
+        stage, export video, ship.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<div class="chrome">
+  <span class="count" id="count">1 / 4</span>
+  <span class="bar"><i id="bar"></i></span>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   MINIMAL SLIDE ENGINE — nav, active-slide state, animation replay, clean mode.
+   Exposes window.__go(n) so an outer page (site/stage.js) can drive this deck from an iframe,
+   the same "stage" model the product page uses.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const bar = document.getElementById('bar');
+  const count = document.getElementById('count');
+  let i = 0;
+
+  // #clean (or ?clean) hides the presenter chrome — used when exporting/recording video, and
+  // when the site's stage hosts this deck in an iframe (the parent draws its own UI instead).
+  if (/clean/.test(location.hash) || /clean/.test(location.search)) {
+    document.body.classList.add('is-clean');
+  }
+
+  function render(){
+    slides.forEach((s, n) => {
+      const active = n === i;
+      // Force a reflow between removing and re-adding the active class so the CSS animations
+      // (which only fire on `.slide.active .a-*`) restart from frame 0 on every revisit,
+      // instead of silently no-opping because the class never actually left.
+      if (active) { s.classList.remove('active'); void s.offsetWidth; s.classList.add('active'); }
+      else s.classList.remove('active');
+    });
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    count.textContent = (i + 1) + ' / ' + slides.length;
+  }
+
+  function go(n){ i = Math.max(0, Math.min(slides.length - 1, n)); render(); }
+  window.__go = go;          // driven externally (site/stage.js) or from devtools
+  window.__slideCount = slides.length;
+
+  window.addEventListener('keydown', (e) => {
+    if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); go(i+1); }
+    else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); go(i-1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key.toLowerCase() === 'f') document.documentElement.requestFullscreen?.();
+  });
+  document.getElementById('stage').addEventListener('click', () => go(i+1));
+
+  // basic swipe
+  let x0 = null;
+  window.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  window.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) go(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  }, { passive: true });
+
+  render();
+})();
+</script>
+</body>
+</html>

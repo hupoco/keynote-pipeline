@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product page — runs the deck</title>
+<link rel="stylesheet" href="vendor/lenis.css">
+<style>
+  :root{ --ink:#161618; --paper:#fff; --muted:#6b7280; --line:#e5e7eb; --accent:#fe4a0b;
+         --deck-scale:1; --deck-h:900px; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,"SF Pro Text","Inter",system-ui,sans-serif}
+
+  .nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:center;padding:18px 28px;font:600 13px/1 -apple-system,sans-serif;
+    background:transparent;transition:background .2s ease, box-shadow .2s ease}
+  .nav.on{background:rgba(255,255,255,.9);backdrop-filter:blur(8px);box-shadow:0 1px 0 var(--line)}
+  .nav a{color:inherit;text-decoration:none}
+
+  .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:0 24px}
+  .hero .kicker{font:600 13px/1 -apple-system,sans-serif;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 18px}
+  .hero h1{font:700 clamp(36px,6vw,72px)/1.05 -apple-system,sans-serif;letter-spacing:-.02em;
+    max-width:16ch;margin:0 0 20px}
+  .hero p{font:400 18px/1.6 -apple-system,sans-serif;color:var(--muted);max-width:52ch;margin:0}
+  .hero .down{margin-top:48px;font:600 12px/1 -apple-system,sans-serif;color:var(--muted);
+    letter-spacing:.08em;text-transform:uppercase}
+
+  /* ── the stage: a tall section that pins a scaled copy of the deck while you scroll through it.
+     Height controls how much scroll a slide "owns" — 220vh reads as a comfortable, unhurried pin. */
+  [data-stage]{position:relative;height:220vh}
+  .stage-pin{position:sticky;top:0;height:100vh;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;background:#0a0a0b}
+  .stage-frame{position:relative;width:calc(1600px * var(--deck-scale));height:var(--deck-h);
+    box-shadow:0 40px 100px -30px rgba(0,0,0,.5);border-radius:12px;overflow:hidden;
+    opacity:0;transition:opacity .4s ease}
+  [data-stage].ready .stage-frame{opacity:1}
+  .stage-deck{position:absolute;top:0;left:0;width:1600px;height:900px;border:0;
+    transform:scale(var(--deck-scale));transform-origin:top left}
+  .stage-label{position:absolute;left:24px;bottom:24px;color:#fff;opacity:.55;
+    font:600 11px/1 ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase;z-index:2}
+
+  .foot{padding:80px 24px;text-align:center;color:var(--muted);font:400 14px/1.6 -apple-system,sans-serif}
+  .foot code{background:var(--line);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<header class="nav" id="nav">
+  <a href="#">keynote-pipeline</a>
+  <a href="../deck/index.html" target="_blank">open the deck ↗</a>
+</header>
+
+<section class="hero">
+  <p class="kicker">Product page</p>
+  <h1>The page doesn't retell the story.<br>It runs it.</h1>
+  <p>
+    Every section below pins the actual <code>deck/index.html</code> in an iframe and scrolls it
+    onto whichever slide it names. Nothing here is a re-implementation — edit the deck, and this
+    page updates for free.
+  </p>
+  <p class="down">scroll ↓</p>
+</section>
+
+<section data-stage data-slide="0">
+  <div class="stage-pin">
+    <div class="stage-frame"><span class="stage-label">deck · slide 1</span></div>
+  </div>
+</section>
+
+<section data-stage data-slide="1">
+  <div class="stage-pin">
+    <div class="stage-frame"><span class="stage-label">deck · slide 2</span></div>
+  </div>
+</section>
+
+<section data-stage data-slide="2">
+  <div class="stage-pin">
+    <div class="stage-frame"><span class="stage-label">deck · slide 3</span></div>
+  </div>
+</section>
+
+<section data-stage data-slide="3">
+  <div class="stage-pin">
+    <div class="stage-frame"><span class="stage-label">deck · slide 4</span></div>
+  </div>
+</section>
+
+<footer class="foot">
+  Fork this. Replace the deck's slides, then add or remove <code>[data-stage]</code> sections to
+  match — see <code>docs/pipeline-guide.md</code>.
+</footer>
+
+<script src="vendor/lenis.min.js"></script>
+<script src="stage.js" defer></script>
+</body>
+</html>
