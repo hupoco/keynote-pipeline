@@ -7,6 +7,8 @@ the media that goes into all three.
 Fork it, replace the four placeholder slides in `deck/index.html` with your own story, and the
 site and teaser follow along — there's exactly one place your content lives.
 
+**Building this out for your own product? Read [`docs/adopting-for-your-product.md`](docs/adopting-for-your-product.md) first** — where this repo should live relative to your product's codebase, the order to actually build in (story → deck → real screenshots → site/teaser wiring), and how to use Claude Code (or another coding agent) to do the mechanical work while you make the editorial calls, including pulling real screenshots from your running product instead of relying on generated stand-ins.
+
 ## Quickstart
 ```bash
 npm install
@@ -26,9 +28,11 @@ Open the deck directly at `/deck/index.html`, or the teaser at `/short/index.htm
   on a timer, and the same page is the recording target for `npm run export:short`.
 - `scripts/` — generation (`gen-image`, `gen-video`, `gen-voiceover`, `gen-audio`) and export
   (`screenshot`, `export-pdf`, `export-video`, `build:standalone`, `serve`) tooling.
-- `docs/pipeline-guide.md` — **read this before you extend anything.** How the pieces fit together,
-  and the non-obvious constraints (serving over http, video export needing a real display, byte
-  ranges) that are easy to silently break.
+- `docs/adopting-for-your-product.md` — **start here if this is for a real product.** Where this
+  repo should live relative to your codebase, the build order, and how to work with Claude Code
+  (or another agent) to do it.
+- `docs/pipeline-guide.md` — how the pieces fit together, and the non-obvious constraints (serving
+  over http, video export needing a real display, byte ranges) that are easy to silently break.
 - `docs/design-system.md` — the deck's CSS/motion conventions.
 - `docs/assets.md` — generating and inserting media, plus hard-won video-generation lessons.
 
