@@ -37,36 +37,43 @@ let win = null;
 let timers = [];
 let running = false;
 
-/* Resolves once the deck inside the iframe is actually drivable. Poll for __go rather than sleeping
-   a fixed amount — a flat wait is either wasted time or a race, and here it is both. */
+/* Resolves once the deck inside the iframe is actually drivable.
+
+   POLL FOR THE HOOK, don't wait on the load event and don't sleep a fixed amount. A flat wait is
+   either wasted time or a race and here it would be both, but the load event is worse: this is a
+   deferred module script, so the iframe can finish loading BEFORE this line runs, the listener then
+   never fires, and the cut silently never starts. Polling is correct whether we are early or late.
+   __go is also the right thing to wait for — the load event says the document arrived, not that its
+   engine has installed itself. */
 const ready = new Promise((resolve) => {
-  frame.addEventListener('load', () => {
-    win = frame.contentWindow;
-    let tries = 0;
-    (function wait() {
-      let ok = false;
-      try { ok = typeof win.__go === 'function'; } catch (e) {}
-      if (ok) return resolve(win);
-      if (tries++ < 120) return setTimeout(wait, 60);
-      console.warn('short: the deck never exposed __go — the cut cannot be driven');
-      resolve(null);
-    })();
-  });
+  let tries = 0;
+  (function wait() {
+    let w = null;
+    try { w = frame.contentWindow; } catch (e) {}
+    if (w && typeof w.__go === 'function') { win = w; return resolve(w); }
+    if (tries++ < 200) return setTimeout(wait, 60);   /* 12s, then give up loudly */
+    console.warn('short: the deck never exposed __go — the cut cannot be driven');
+    resolve(null);
+  })();
 });
 
 const go = (slide) => { try { win && win.__go(slide); } catch (e) {} };
 
-function stop() {
-  timers.forEach(clearTimeout);
-  timers = [];
-  running = false;
-}
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function stop() { clearTimers(); running = false; }
 
 async function start() {
-  await ready;
-  if (!win) return;
-  stop();
+  clearTimers();
+  /* SET SYNCHRONOUSLY, BEFORE THE AWAIT. The recorder starts a take by calling start() and then
+     polls `running` every 500ms, treating false as "the film has finished". Setting it after
+     `await ready` — even when `ready` has already resolved, because an await still defers a turn —
+     means the first poll sees false and the recorder stops. Measured: a 12s film recorded as 0.5s
+     of video, and the only other symptom was an A/V length warning.
+     It is also the honest semantic. `running` means "a take is in progress"; whether the deck
+     inside the iframe has finished booting is this file's problem, not the recorder's. */
   running = true;
+  const w = await ready;
+  if (!w || !running) return;      /* stopped while we were waiting */
   go(CUT.length ? CUT[0].slide : 0);
   for (const { t, slide } of CUT) {
     if (t > 0) timers.push(setTimeout(() => go(slide), t * 1000));
