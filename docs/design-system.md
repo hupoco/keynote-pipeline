@@ -88,7 +88,95 @@ to replays its build instead of sitting there fully formed.
   non-flex ancestor if a caption's spacing looks wrong.
 
 ## Engine / controls
-- Nav: → ← / space / click / swipe; `Home` / `End`; **F** = fullscreen.
+- Nav: → ← / space / click / swipe; `Home` / `End`; **F** = fullscreen; **p** = autoplay; **m** = mute.
 - Adding or removing a `<section class="slide">` updates the slide count automatically — no config.
-- `#clean` (or `?clean`) on the deck's URL hides the presenter chrome — used by the site's stage
-  and by video export, so a capture is frame-identical to what's authored, minus the furniture.
+  Count it from the DOM, never from a note in a file: every derived record of "how many slides"
+  drifts, and the DOM is the only one that cannot.
+- `#clean` (or `?clean`) on the deck's URL hides the presenter chrome and the cursor — used by the
+  site's stage and by video export, so a capture is frame-identical to what's authored, minus the
+  furniture. Preview exactly what gets recorded by opening `deck/index.html#clean` yourself.
+- `--xfade` is the slide crossfade length. It is read by **both** the `.slide` CSS transition and
+  the engine's navigation lock, because a press landing mid-crossfade is swallowed. Change it in
+  `:root` only — two numbers here means a driver eventually spends presses into a transition.
+
+## The window contract
+Everything else in this repo drives the deck through these. Keep them working and you can rewrite
+the rest. `site/stage.js`, `short/index.html`, `scripts/screenshot.mjs`, `scripts/export-pdf.mjs`
+and both video exporters all reach in here.
+
+| Hook | |
+|---|---|
+| `__go(n)` | jump to slide `n` (0-based), clamped |
+| `__next()` `__prev()` | the SAME advance every key, click and swipe uses — so nothing driving the deck has to re-implement what a press does |
+| `__isLocked()` | true while a slide transition is in flight. A press during the lock is **swallowed**, so a driver must defer rather than burn it |
+| `__slideCount` | how many slides there are |
+| `__hold` | set true to stop a self-advancing slide handing itself over. The capture tools set it so a screenshot lands on the slide it asked for |
+| `__pace(ms)` | scale an authored gap by `__deckPace` |
+| `__autoplay` | `{start, stop, running}` — **the recorder's contract.** Both video exporters call `start()` and poll `running`; `#autobtn`'s `aria-pressed` is their fallback |
+| `__deckAudio` | `{sfx, toBed, bedFor, amb, ambStop, duck, setMuted, …}` |
+| `__autoplayTiming` | every pacing knob, live in devtools |
+
+Two hooks a **slide** may set on itself, both optional:
+- `slide.__subProg = () => ({i, n})` — where its own beats have got to. The progress bar and the
+  autoplay driver both read it, so a slide that owns several beats is never advanced past
+  mid-sequence. One expression, three consumers; they cannot disagree.
+- `slide.__slideStep = (dir) => boolean` — consume a press to step its own beats; return `false` at
+  either end to hand the key back to the deck. This is what makes a long build rehearsable.
+
+## The `data-*` vocabulary
+Behaviour is declared on the slide, not wired up in script. Everything here is optional and inert
+until you use it.
+
+| Attribute | What it does |
+|---|---|
+| `data-vo-lines="3"` | this slide narrates `slide-NN`, `slide-NN-2`, `slide-NN-3` back to back as a **queue**, each starting when the last ends. A long slide needs this: picking one line by which third of `__subProg` you are in leaves most of the slide silent *and* cuts any line long enough to say something |
+| `data-vo-at="0,2,4"` | per queued line, the `__subProg().i` value that line waits for, so the voice tracks the picture. **Note the convention:** `__subProg` returns `{i: cur+1}`, so these are `i` values — one ahead of the driver's own step index. Line 1 is never gated |
+| `data-vo-delay="4200"` | hold the FIRST line until the slide's own copy has arrived. A plain time gate is right here precisely because the thing being waited for IS a time-based CSS animation with no state to read |
+| `data-chat="name"` | run `window.CHAT_SCRIPTS['name']` when this slide goes live, reset when it leaves |
+| `data-chat-ms="6400"` | how long that script runs, so autoplay waits for it. Sum the `{wait}` steps plus 28ms per typed character and round up. Without it, `__autoplayTiming.defaultChatMs` is used — long enough to be *safe*, not right |
+| `data-amb="amb-kitchen"` | room tone under this slide, from `assets/sfx/`, at the gain in the deck's `AMB_GAIN` map |
+
+### Sizing a narration line
+**~2.2 words/second**, measured. Aim for the slide's own length; a comma-separated list costs more
+than its word count suggests. Voiceover ids must match `scripts/voiceover-script.mjs` exactly —
+`slide-01`, `slide-01-2`. Say the NEXT thing, not the same thing: the screen names it, the line
+gives the consequence.
+
+## Audio
+All optional; silent until `npm run gen:audio` / `npm run gen:voiceover` have written the files. The
+levels in the deck's `SFX_GAIN` / `BEDS` / `AMB_GAIN` maps are **duplicated by hand** from
+`scripts/audio-script.mjs`, because the deck cannot read a `manifest.json` over `file://` (a fetch
+of a local file is blocked) and a wrong level is a far cheaper failure than a broken deck. Keep the
+two in step.
+
+- Beds are zoned by 1-based slide number and crossfade **equal-power** (`cos`/`sin`). Two opposing
+  linear ramps dip ~3dB at the midpoint — an audible hole exactly where the transition is meant to
+  be seamless.
+- Beds **duck** ~8dB while narration is speaking, released on a 420ms bridge so back-to-back lines
+  stay one duck but a gated wait lets the music back up.
+- `resume: true` picks a bed up where it left off. Restarting a long bed's first bar every time you
+  re-enter its zone means the opening few seconds are the only part anyone ever hears.
+- **Audio never enters the Web Audio graph.** `createMediaElementSource()` outputs permanent
+  silence for a cross-origin source, and under `file://` a relative src IS cross-origin. Gain nodes
+  would be the "proper" way and would silently play nothing. Volume ramps use element `.volume`.
+
+## Autoplay
+**p** or the ▶ button walks the deck unattended. It drives the same `__next()` a keypress does, and
+only decides *when* to press:
+
+- a slide publishing `__subProg` is **watched**, not driven — advancing mid-sequence races its own
+  timer and skips a beat
+- a slide carrying a non-looping `<video>` is paced to **the clip's own remaining duration**. Never
+  a constant: a reading-time dwell capped at 5s applied to an 8s shot cuts the shot at 44%. A
+  *looping* video is excluded — it has no end to play to
+- a `data-chat` slide gets `data-chat-ms`
+- anything else gets **read time** from its own `innerText`, so it scales with what is on screen
+
+Narration, where it exists, overrides all of that — the clip's own length is the dwell. Two knobs,
+both live in devtools: `__autoplayTiming.beatPace` compresses every slide's authored gaps (floored
+at 1250ms so no beat loses its CSS transition), and `__autoplaySpeed` scales only the dwells
+autoplay itself invents. **Narration never scales** — a clip's length is its length, and stretching
+a voice distorts it.
+
+Any manual gesture cancels autoplay. It stops itself at the end by *observing the deck stall*
+rather than by predicting which press is the last one.

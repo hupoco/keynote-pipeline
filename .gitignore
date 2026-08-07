@@ -10,9 +10,16 @@ assets/sfx/
 assets/music/
 assets/shots/
 
-# video export and its scratch dir — regenerable from the deck
+# video export and its scratch dirs — regenerable from the deck.
+# scripts/out/ is where export-video-deterministic.mjs writes; it also leaves alog.json and
+# slides.json there, which are render diagnostics rather than deliverables.
 *.mp4
 *-master.mp4
 *-markers.json
 .export-*/
+scripts/out/
 *.pdf
+
+# ...but NOT scripts/vendor/. timeweb is committed on purpose: an export has to reproduce a year
+# from now, and a virtual clock that silently changes version changes every frame it renders.
+!scripts/vendor/
