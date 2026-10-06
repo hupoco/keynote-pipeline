@@ -1,0 +1,117 @@
+{
+  "title": "Engagement by Hupo",
+  "disclaimer_card": "All leads, names and call records shown are fictional demo data.\nAny resemblance to real people is coincidental.",
+  "disclaimer_corner": "Demo data. Names and details shown are fictional.",
+  "beats": [
+    {
+      "title": "Cold open",
+      "shots": [
+        { "card": "disclaimer", "hold": 4.0 },
+        { "frame": "01-landing", "kind": "push",
+          "vo": ["Every call, every outcome, every rule.",
+                 "Your team places thousands of calls a week.",
+                 "Who was reached. Who said yes. Who can't be called again until Thursday."] },
+        { "frame": "01-landing", "kind": "push",
+          "vo": ["The answers exist. They're scattered across sheets, dialler logs and someone's inbox.",
+                 "So what if they were one screen away?"] },
+        { "frame": "01-landing", "kind": "static",
+          "vo": ["This is Engagement.",
+                 "One place to run outbound at scale, inside the rules you've already approved."] }
+      ]
+    },
+    {
+      "title": "One company, many scripts",
+      "shots": [
+        { "frame": "02-script-picker", "over": "01-landing", "kind": "static",
+          "vo": ["One company. Several use cases.",
+                 "Log in, and it asks which one you're here for."] },
+        { "frame": "03-dashboard", "kind": "push", "focus": "sidebar",
+          "vo": ["Pick a script, and everything you see belongs to it.",
+                 "Change it from the sidebar, and every page follows."] }
+      ]
+    },
+    {
+      "title": "Dashboard",
+      "shots": [
+        { "frame": "03-dashboard", "kind": "push",
+          "vo": ["Scoped, measured, current.",
+                 "The dashboard reads the way the call was meant to end."] },
+        { "frame": "03-dashboard", "kind": "static",
+          "vo": ["For a callback script, that's meetings agreed.",
+                 "For another, it might be consent given.",
+                 "The metric follows the outcome, not the other way round."] }
+      ]
+    },
+    {
+      "title": "Leads",
+      "shots": [
+        { "frame": "04-leads", "kind": "push",
+          "vo": ["Every lead you imported, with everything you imported it with."] },
+        { "frame": "05-lead-sidebar", "kind": "push", "focus": "right",
+          "vo": ["Open one, and the calls it has had are right there."] },
+        { "frame": "06-leads-transcript-redacted", "kind": "push", "focus": "right",
+          "vo": ["Then the transcript itself.",
+                 "PII is masked in the transcript before anyone reads it."] },
+        { "frame": "05-lead-sidebar", "kind": "static", "focus": "right",
+          "vo": ["And for a callback script, the outcome stands on its own line: when the lead is free for a callback."] }
+      ]
+    },
+    {
+      "title": "Batches",
+      "shots": [
+        { "frame": "08-leads-create-batch-1", "kind": "static",
+          "vo": ["Two ways to put the AI on the phone."] },
+        { "frame": "09-leads-create-batch-2", "kind": "push",
+          "vo": ["Choose the exact leads you want, and send them."] },
+        { "frame": "11-calls-create-batch", "kind": "push",
+          "vo": ["Or set a batch size, and let it take the next thousand."] },
+        { "frame": "10-calls", "kind": "push",
+          "vo": ["Every batch you've run is a record. When it ran, how many connected, how each one ended."] },
+        { "frame": "13-batch-detail", "kind": "push",
+          "vo": ["Open a batch, and it's the same picture, call by call."] },
+        { "frame": "15-batch-retry-unreached", "kind": "static",
+          "vo": ["The ones that didn't land, no answer, voicemail, a dropped line, come back in one retry.",
+                 "And only the ones still eligible go out again."] }
+      ]
+    },
+    {
+      "title": "Settings",
+      "shots": [
+        { "frame": "16-settings-frequency-1", "kind": "push",
+          "vo": ["Configured, enforced, recorded.",
+                 "Every script has its own rules."] },
+        { "frame": "17-settings-frequency-2", "kind": "static",
+          "vo": ["How often one person can be called, in a week or in total."] },
+        { "frame": "18-settings-hours", "kind": "push",
+          "vo": ["When the AI is allowed to call, down to the day."] },
+        { "frame": "19-settings-blackout-dialog", "over": "20-settings-hours-2", "kind": "static",
+          "vo": ["And the dates it never will."] },
+        { "frame": "20-settings-hours-2", "kind": "static",
+          "vo": ["The system holds the line on every batch and every retry."] },
+        { "frame": "21-settings-changelog", "kind": "push",
+          "vo": ["And every change is logged: who, what, when."] }
+      ]
+    },
+    {
+      "title": "Reports and roles",
+      "shots": [
+        { "frame": "22-report-leads", "kind": "static",
+          "vo": ["Everything you've seen, exportable."] },
+        { "frame": "23-report-lead-sidebar", "kind": "static",
+          "vo": ["The leads you imported."] },
+        { "frame": "25-report-batch-1", "kind": "static",
+          "vo": ["Every call behind every lead."] },
+        { "frame": "10-calls", "kind": "push",
+          "vo": ["And two ways in. Admins set and send. Agents see."] }
+      ]
+    },
+    {
+      "title": "Close",
+      "shots": [
+        { "frame": "01-landing", "kind": "push",
+          "vo": ["Thousands of calls. One screen.",
+                 "Engagement by Hupo."], "tail": 2.5 }
+      ]
+    }
+  ]
+}

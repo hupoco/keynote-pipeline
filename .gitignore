@@ -16,3 +16,7 @@ assets/shots/
 *-markers.json
 .export-*/
 *.pdf
+
+# Engagement video: rendered output and intermediates
+assets/engagement/build/
+assets/engagement/engagement.mp4
