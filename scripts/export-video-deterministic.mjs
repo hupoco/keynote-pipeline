@@ -59,8 +59,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = '/Users/zenas/Documents/Showcases/Chat/Chat 1.0.0';
-const TIMEWEB = path.join(HERE, 'package/dist/timeweb.js');
+const ROOT = path.resolve(HERE, '..');
+const TIMEWEB = path.join(HERE, 'vendor/timeweb/timeweb.js');
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : d; };
 const has = (n) => process.argv.includes(n);
@@ -321,7 +321,20 @@ console.log(`• videos ${ready ? 'buffered' : 'NOT fully buffered (continuing)'
             `${await page.evaluate(() => performance.now())}ms — nothing has moved yet`);
 
 if (FROM > 1) { await page.evaluate((n) => window.__go(n - 1), FROM); await sleep(400); }
-await page.evaluate(() => document.getElementById('autobtn').click());
+/* Prefer the scripted handle over the button. A deck that ships without presenter chrome still
+   exports; getElementById(...).click() on a missing element throws before frame zero. */
+const started = await page.evaluate(() => {
+  if (window.__autoplay && typeof window.__autoplay.start === 'function') { window.__autoplay.start(); return 'window.__autoplay.start()'; }
+  const b = document.getElementById('autobtn');
+  if (b) { b.click(); return '#autobtn.click()'; }
+  return null;
+});
+if (!started) {
+  console.error('\nx this page has neither window.__autoplay.start() nor an #autobtn to click.');
+  console.error('  Nothing would drive the deck, so every frame would be identical. Stopping.');
+  process.exit(1);
+}
+console.log(`• autoplay started via ${started}`);
 
 const N = Math.round(SECONDS * FPS);
 const markerFrames = MARKER ? new Set(MARKER_TIMES_MS.filter((m) => m < SECONDS * 1000).map((m) => Math.round(m / 1000 * FPS))) : new Set();
@@ -359,7 +372,7 @@ for (let f = 0; f < N; f++) {
     const sl = [...document.querySelectorAll('.slide')];
     return { vt: performance.now(),
              slide: sl.indexOf(document.querySelector('.slide.active')) + 1,
-             on: document.getElementById('autobtn').getAttribute('aria-pressed') === 'true',
+             on: window.__autoplay?.running ?? (document.getElementById('autobtn')?.getAttribute('aria-pressed') === 'true'),
              /* a playing film's currentTime must move every single frame — this is the canary for
                 the load() trap above, and for any future change that pauses a film by accident */
              film: [...document.querySelectorAll('video')].filter((v) => !v.paused).map((v) => +v.currentTime.toFixed(4)) };

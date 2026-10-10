@@ -63,7 +63,9 @@ the video-generation section — those lessons cost real API calls to learn the 
   portable file that opens by double-click with no server.
 - `npm run export:video` / `npm run export:short` — records the deck / the short page to an mp4.
   **Read the next section before you run this** — the constraints below are non-obvious and easy
-  to silently violate.
+  to silently violate. `export:short` derives its length from `edl.js`'s `DURATION` rather than
+  carrying its own `--seconds`; two numbers for one fact drift, and the failure is asymmetric (too
+  long costs nothing, too short truncates the ending and you find out after the render).
 
 ## Video export: what you need to know before it works
 This is the part of the pipeline most likely to look "almost right" while being subtly broken, so
@@ -76,8 +78,14 @@ these are stated as flatly as possible.
 - **`npm run export:video` needs a real, unlocked display — it cannot run headless.**
   `getDisplayMedia()` (which is how it captures the tab, picture and sound together in one
   `MediaStream`) rejects outright in headless Chromium under every flag combination. Use
-  `scripts/export-video-deterministic.mjs` instead if you need this in CI or over SSH — it's a
-  virtual-clock renderer, roughly 5x slower, and is the unmaintained fallback for exactly this case.
+  `npm run export:video:headless` instead if you need this in CI or over SSH — a virtual-clock
+  renderer (`scripts/export-video-deterministic.mjs`, vendoring timeweb under `scripts/vendor/`),
+  roughly 5x slower, and the fallback for exactly this case. It renders the deck correctly; it
+  cannot render `short/index.html`, because that page drives the deck through an **iframe** and the
+  virtual clock is only installed in the top document. Record the short with the headful path.
+- **Both exporters start playback through `window.__autoplay.start()`** and poll
+  `window.__autoplay.running`, falling back to `#autobtn[aria-pressed]`. If your page has neither
+  they stop with a message rather than recording a still frame for the full duration.
 - **Audio only works over http, never `file://`.** `createMediaElementSource()` (which the audio tap
   needs) silences a cross-origin `<audio>`/`<video>` element outright, and under `file://` a
   relative `src` counts as cross-origin. This is the same constraint that makes the site require a
@@ -91,8 +99,16 @@ these are stated as flatly as possible.
   long recording, truncating the audio track while the video keeps going.
 
 ## Present live
-`npm run serve` → open the deck → **F** for fullscreen, arrows/space to advance. This starter's
-motion engine ships without an autoplay/narration driver — see the comment in `deck/index.html`'s
-`<script>` block for the one hook (`window.__go`) you'd wire a driver against if you build one — pace it off each narration clip's
-actual playback length rather than a guessed reading time; a clip's length is the one thing that
-can't drift out of sync with itself.
+`npm run serve` → open the deck → **F** for fullscreen, arrows/space to advance, **p** to let it
+play itself, **m** to mute.
+
+Autoplay paces each slide off what is actually on it — a clip's own remaining duration, a scripted
+demo's authored length, or reading time from the slide's own text — and off the narration clip
+where one exists, because a clip's length is the one thing that cannot drift out of sync with
+itself. It stops itself at the end by observing the deck stall rather than by predicting which
+press is the last one, and any manual gesture cancels it.
+
+The full vocabulary — `data-vo-lines`, `data-vo-at`, `data-vo-delay`, `data-chat`, `data-chat-ms`,
+`data-amb`, and the `__subProg` / `__slideStep` hooks a slide can publish about itself — is in
+[`docs/design-system.md`](design-system.md). None of it is required; a slide with no attributes
+behaves exactly as it did before any of this existed.

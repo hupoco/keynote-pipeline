@@ -21,4 +21,13 @@ export const CUT = [
   { t: 9.0, slide: 3, hold: 3.0 },
 ];
 
+/* DURATION is DERIVED, and nothing may restate it. `npm run export:short` reads it from here rather
+   than carrying its own --seconds, because the two numbers drifted the moment they both existed:
+   the production repo this starter came from exports a 60.0s film and passes --seconds 90. A cap
+   that is 30 seconds too long costs nothing; one that is a second too short truncates the ending,
+   and you find out after the render. */
 export const DURATION = CUT.length ? CUT[CUT.length - 1].t + CUT[CUT.length - 1].hold : 0;
+
+/* Alias. Grown-up EDLs in this lineage name it TOTAL; keep both so a cut lifted from either repo
+   drops in without a rename. */
+export const TOTAL = DURATION;

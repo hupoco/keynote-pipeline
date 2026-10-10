@@ -18,6 +18,10 @@
      it forces every hierarchy decision onto weight/size/spacing instead of a second face. */
   --jak: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif;
   --body: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+  /* How long a slide change takes. Read by BOTH the .slide transition below and the engine's
+     navigation lock — a press landing mid-crossfade is swallowed, so the two have to be one
+     number or a driver starts spending presses into a transition. Change it here only. */
+  --xfade:300ms;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--ink);overflow:hidden;height:100%}
@@ -26,7 +30,7 @@ body{font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased
 /* ── slide wrapper ─────────────────────────────────────────────────────────────────────────── */
 .stage{position:relative;width:100vw;height:100vh;background:var(--ink)}
 .slide{position:absolute;inset:0;background:var(--paper);display:flex;align-items:center;
-  justify-content:center;opacity:0;visibility:hidden;transition:opacity .3s ease}
+  justify-content:center;opacity:0;visibility:hidden;transition:opacity var(--xfade) ease}
 .slide.active{opacity:1;visibility:visible;z-index:1}
 .wrap{width:min(1120px,86vw);padding:48px}
 .wrap.center{text-align:center;margin:0 auto}
@@ -90,13 +94,57 @@ body{font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased
 /* Graph node pop — pair with a-pop, e.g. class="gnode a-pop" */
 .gnode circle{transform-origin:center}
 
-/* ── chrome (nav / progress / counter) — hidden in #clean, used for live presenting ─────────── */
-.chrome{position:fixed;inset:auto 0 0 0;display:flex;align-items:center;gap:16px;
-  padding:14px 22px;font:600 12px/1 var(--jak);color:#fff;z-index:10;pointer-events:none}
-.chrome .bar{flex:1;height:2px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}
+/* ── chrome (nav / progress / counter / autoplay / mute) — hidden in #clean ───────────────────
+   The stage is LIGHT and a slide covers the viewport, so this cannot be white-on-transparent the
+   way a chrome sitting over a dark stage can (it was, and it was invisible). Everything here is
+   ink on a paper pill, which reads over a white slide and over a .dark one alike.
+   pointer-events: the strip itself is transparent to clicks — the stage's own click-to-advance
+   must still work through it — and only the controls take them back. */
+.chrome{position:fixed;inset:auto 0 0 0;display:flex;align-items:center;gap:14px;
+  padding:14px 22px;font:600 12px/1 var(--jak);color:var(--ink);z-index:10;pointer-events:none}
+.chrome .bar{flex:1;height:2px;background:var(--line);border-radius:2px;overflow:hidden}
 .chrome .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s ease}
-.chrome .count{opacity:.75;font-variant-numeric:tabular-nums}
-body.is-clean .chrome{display:none}
+.chrome .count{font-variant-numeric:tabular-nums;color:var(--muted);
+  background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 11px}
+.chrome .ctl{display:flex;align-items:center;gap:6px;pointer-events:auto}
+.navbtn{-webkit-appearance:none;appearance:none;width:30px;height:30px;padding:0;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;border-radius:999px;
+  background:var(--paper);border:1px solid var(--line);color:var(--ink);
+  transition:background .18s ease,border-color .18s ease}
+.navbtn:hover{background:var(--paper-2);border-color:var(--line-2)}
+.navbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.navbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+/* the play/stop and sound/muted pairs are two <svg> in one button; aria-pressed picks which shows,
+   so the button's visual state and its accessible state can never disagree */
+.navbtn .ico-stop,.navbtn .ico-muted{display:none}
+.autobtn[aria-pressed="true"] .ico-play{display:none}
+.autobtn[aria-pressed="true"] .ico-stop{display:block}
+.mutebtn[aria-pressed="true"] .ico-sound{display:none}
+.mutebtn[aria-pressed="true"] .ico-muted{display:block}
+.autobtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.navbtn .ico-play path,.navbtn .ico-stop rect{fill:currentColor;stroke:none}
+
+/* jump menu — every slide by its own headline, read off the DOM at open time so it can never
+   list a slide that is no longer there */
+.dvs-wrap{position:relative;pointer-events:auto}
+.dvs-m{position:absolute;bottom:38px;right:0;min-width:260px;max-height:52vh;overflow:auto;
+  background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:6px;
+  box-shadow:0 18px 40px -14px rgba(0,0,0,.22)}
+.dvs-m[hidden]{display:none}
+.dvs-m button{display:flex;gap:10px;width:100%;text-align:left;cursor:pointer;padding:8px 10px;
+  border:0;border-radius:9px;background:transparent;font:500 13px/1.3 var(--body);color:var(--ink)}
+.dvs-m button:hover{background:var(--paper-2)}
+.dvs-m button[aria-current="true"]{color:var(--accent)}
+.dvs-m button i{font:600 11px/1.5 ui-monospace,monospace;color:var(--muted);font-style:normal}
+
+.hint{position:fixed;left:22px;bottom:52px;z-index:10;pointer-events:none;
+  font:500 12px/1 var(--body);color:var(--muted);opacity:.9;transition:opacity .5s ease}
+.hint.gone{opacity:0}
+body.autoplaying .hint{opacity:0}
+body.is-clean .chrome,body.is-clean .hint{display:none}
+/* the cursor is furniture too: a recording must not have one parked in the middle of the frame */
+body.is-clean{cursor:none}
 </style>
 </head>
 <body>
@@ -172,24 +220,140 @@ body.is-clean .chrome{display:none}
 <div class="chrome">
   <span class="count" id="count">1 / 4</span>
   <span class="bar"><i id="bar"></i></span>
+  <div class="ctl">
+    <button type="button" class="navbtn" id="prev" aria-label="Previous slide">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button type="button" class="navbtn" id="next" aria-label="Next slide">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    <!-- THE RECORDER'S CONTRACT. scripts/export-video.mjs and export-video-deterministic.mjs
+         start a take with window.__autoplay.start() and poll window.__autoplay.running; this
+         button is the human-facing half of the same switch, and its aria-pressed is the fallback
+         those scripts read if the handle is missing. Rename it and the exporters still work;
+         delete the autoplay driver and they stop with a clear message instead of a TypeError. -->
+    <button type="button" class="navbtn autobtn" id="autobtn" aria-pressed="false"
+            aria-label="Play the deck automatically">
+      <svg class="ico-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>
+      <svg class="ico-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+    </button>
+    <button type="button" class="navbtn mutebtn" id="mutebtn" aria-pressed="false"
+            aria-label="Mute the audio">
+      <svg class="ico-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path d="M16 8.5a4.5 4.5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg>
+      <svg class="ico-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>
+    </button>
+    <div class="dvs-wrap" id="dvs">
+      <div class="dvs-m" id="dvs-menu" role="menu" aria-label="Jump to a slide" hidden></div>
+      <button type="button" class="navbtn" id="dvs-btn" aria-label="Jump to a slide"
+              aria-haspopup="true" aria-expanded="false" aria-controls="dvs-menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.6" y="4.6" width="7" height="6" rx="1.7"/><rect x="13.4" y="4.6" width="7" height="6" rx="1.7"/><rect x="3.6" y="13.4" width="7" height="6" rx="1.7"/><rect x="13.4" y="13.4" width="7" height="6" rx="1.7"/></svg>
+      </button>
+    </div>
+  </div>
 </div>
+<div class="hint" id="hint">→ or space to advance · p to play · m to mute</div>
+
+<!-- ══ AUDIO ELEMENTS ═══════════════════════════════════════════════════════════════════════════
+     Four elements, all empty until something plays through them, all optional. If you never run
+     `npm run gen:voiceover` or `npm run gen:audio` the files behind them do not exist, every load
+     fails its own error event, and the deck behaves exactly as it does with no audio at all.
+
+     THEY STAY OUT OF THE WEB AUDIO GRAPH ON PURPOSE. Piping a media element through
+     createMediaElementSource() yields PERMANENT silence when the element's source is cross-origin,
+     and under file:// a relative src IS cross-origin. Gain nodes would be the "proper" way and
+     would have silently played nothing. Volume ramps use element .volume throughout. -->
+<audio id="vo-audio" preload="none" aria-hidden="true" style="display:none"></audio>
+<!-- two bed elements so one can fade out while the other fades in — a single element cannot
+     crossfade with itself -->
+<audio id="bed-a" preload="none" loop aria-hidden="true" style="display:none"></audio>
+<audio id="bed-b" preload="none" loop aria-hidden="true" style="display:none"></audio>
+<!-- room tone under a shot: its own element rather than the SFX pool (those are one-shots that
+     retrigger) or a bed slot (that pair is a crossfade), because it runs for the length of one
+     shot and fades under two other things -->
+<audio id="film-amb" preload="none" loop aria-hidden="true" style="display:none"></audio>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════════════════════
-   MINIMAL SLIDE ENGINE — nav, active-slide state, animation replay, clean mode.
-   Exposes window.__go(n) so an outer page (site/stage.js) can drive this deck from an iframe,
-   the same "stage" model the product page uses.
+   SLIDE ENGINE — nav, active-slide state, animation replay, clean mode, and the small set of
+   window hooks everything else in this repo drives the deck through.
+
+   THE HOOKS ARE THE CONTRACT. site/stage.js, short/index.html, scripts/screenshot.mjs,
+   scripts/export-pdf.mjs and both video exporters all reach in here. Keep them working and you
+   can rewrite everything else:
+
+     __go(n)            jump to slide n (0-based), clamped
+     __next() __prev()  the SAME advance every key, click and swipe uses — so a driver that wants
+                        to advance the deck never has to re-implement what a press does
+     __isLocked()       true while a slide transition is in flight. A press during the lock is
+                        swallowed, so anything driving the deck must defer rather than burn it
+     __slideCount       how many slides there are. Read off the DOM; never write it down
+     __hold             set true to stop a self-advancing slide handing itself over — the capture
+                        tools set it so a screenshot lands on the slide it asked for
+     __pace(ms)         scale an authored gap by __deckPace (see below)
+     __subProg()        OPTIONAL, set BY a slide: {i, n} — where its own beats have got to. The
+                        progress bar and the autoplay driver both read it, so a slide that owns
+                        several beats is never advanced past mid-sequence
+     __slideStep(dir)   OPTIONAL, set BY a slide: consume a press to step its own beats; return
+                        false at either end to hand the key back to the deck
    ═══════════════════════════════════════════════════════════════════════════════════════════ */
 (function(){
   const slides = Array.from(document.querySelectorAll('.slide'));
   const bar = document.getElementById('bar');
   const count = document.getElementById('count');
-  let i = 0;
+  const hint = document.getElementById('hint');
+  let i = 0, lock = false, lockT = null;
+
+  /* How long a slide change takes, taken from the CSS rather than restated here — .slide has
+     `transition: opacity .3s ease`, and the lock exists to cover exactly that. Restating it as a
+     constant is how the two drift apart and a driver starts pressing into a transition. */
+  const XFADE = (() => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--xfade').trim();
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? (/ms$/.test(v) ? n : n * 1000) : 300;
+  })();
 
   // #clean (or ?clean) hides the presenter chrome — used when exporting/recording video, and
   // when the site's stage hosts this deck in an iframe (the parent draws its own UI instead).
-  if (/clean/.test(location.hash) || /clean/.test(location.search)) {
+  if (/(^|[?#&])clean\b/.test(location.search + location.hash)) {
     document.body.classList.add('is-clean');
+  }
+
+  /* ---- PLAYBACK PACE ----
+     A slide that owns several beats arms them from its own hand-tuned gaps, authored for a
+     presenter reading along out loud. Unattended playback wants those compressed — but
+     proportionally, so the choreography keeps its shape instead of being re-timed beat by beat.
+     Autoplay sets __deckPace below 1; manual presenting leaves it at 1 and is untouched.
+     FLOORED at 1250ms and never longer than the original: most beat transitions are 0.5-1.1s of
+     CSS, so a shorter gap would cut the very animation the beat exists to show. */
+  window.__deckPace = 1;
+  window.__pace = function(ms){
+    const p = +window.__deckPace;
+    if (!(p > 0) || p >= 1) return ms;
+    return Math.min(ms, Math.max(1250, Math.round(ms * p)));
+  };
+
+  /* A slide's own progress, if it publishes any. One expression, three consumers (the bar below,
+     the autoplay driver, and a slide's own gated narration) so they can never disagree. */
+  function subFrac(){
+    const s = slides[i];
+    try {
+      if (typeof s.__subProg === 'function') {
+        const p = s.__subProg();
+        if (p && p.n > 0) return Math.max(0, Math.min(0.999, p.i / p.n));
+      }
+    } catch (e) {}
+    return 0;
+  }
+
+  /* Video is played and reset BY the slide change, not by autoplay: a clip must restart when you
+     step back onto its slide whether or not anything is driving the deck. Everything off-screen is
+     paused — four films decoding behind a slide nobody is looking at is real dropped frames on a
+     recording, which is the one place it would show. */
+  function syncVideo(){
+    slides.forEach((s, n) => {
+      s.querySelectorAll('video').forEach((v) => {
+        if (n === i) { try { v.currentTime = 0; } catch (e) {} const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+        else if (!v.paused) { try { v.pause(); } catch (e) {} }
+      });
+    });
   }
 
   function render(){
@@ -201,22 +365,87 @@ body.is-clean .chrome{display:none}
       if (active) { s.classList.remove('active'); void s.offsetWidth; s.classList.add('active'); }
       else s.classList.remove('active');
     });
-    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    syncVideo();
     count.textContent = (i + 1) + ' / ' + slides.length;
+    paintBar();
+    if (menu && !menu.hidden) paintMenu();
+  }
+  function paintBar(){
+    /* (i + how far into this slide's own beats) over the slides, so a long stepped slide moves the
+       bar as it plays instead of jumping a whole slide's width at the end of it */
+    const denom = Math.max(1, slides.length - 1);
+    bar.style.width = Math.min(100, ((i + subFrac()) / denom) * 100) + '%';
+  }
+  setInterval(paintBar, 250);   /* a slide's beats advance on their own clock, so poll for them */
+
+  function go(n){
+    const to = Math.max(0, Math.min(slides.length - 1, n));
+    if (to === i) { render(); return; }
+    i = to;
+    /* Hold the lock for the crossfade. next() returns silently while it is up, which is why every
+       driver has to ask __isLocked() and defer rather than spend the press. */
+    lock = true; clearTimeout(lockT);
+    lockT = setTimeout(() => { lock = false; }, XFADE);
+    render();
   }
 
-  function go(n){ i = Math.max(0, Math.min(slides.length - 1, n)); render(); }
-  window.__go = go;          // driven externally (site/stage.js) or from devtools
+  /* A slide may own the press — it steps its own beats rather than being skipped past, which is
+     what makes a long build rehearsable. Only slides that define __slideStep are affected. */
+  function slideStep(s, dir){ return !!(s && s.__slideStep && s.__slideStep(dir)); }
+  function next(){ if (lock) return; if (slideStep(slides[i], 1)) return; go(i + 1); }
+  function prev(){ if (lock) return; if (slideStep(slides[i], -1)) return; go(i - 1); }
+
+  window.__go = go;                 // driven externally (site/stage.js, short/) or from devtools
+  window.__next = next;
+  window.__prev = prev;
+  window.__isLocked = function(){ return lock; };
   window.__slideCount = slides.length;
+  if (window.__hold === undefined) window.__hold = false;
+
+  /* ── jump menu ─────────────────────────────────────────────────────────────────────────────
+     Built at OPEN time from the live DOM, labelled with each slide's own first heading. Nothing
+     here is a second list of the slides — a menu that can name a slide that no longer exists is
+     worse than no menu. */
+  const menu = document.getElementById('dvs-menu');
+  const menuBtn = document.getElementById('dvs-btn');
+  function labelFor(s, n){
+    const h = s.querySelector('h1,h2,h3,.display,.h-xl,.h-lg,.big-quote');
+    const t = (h ? h.innerText : '').trim().replace(/\s+/g, ' ');
+    return t ? (t.length > 46 ? t.slice(0, 45) + '…' : t) : 'Slide ' + (n + 1);
+  }
+  function paintMenu(){
+    menu.innerHTML = '';
+    slides.forEach((s, n) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('role', 'menuitem');
+      if (n === i) b.setAttribute('aria-current', 'true');
+      b.innerHTML = '<i>' + String(n + 1).padStart(2, '0') + '</i>';
+      b.appendChild(document.createTextNode(labelFor(s, n)));
+      b.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); go(n); });
+      menu.appendChild(b);
+    });
+  }
+  function openMenu(){ paintMenu(); menu.hidden = false; menuBtn.setAttribute('aria-expanded', 'true'); }
+  function closeMenu(){ menu.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); }
+  if (menuBtn) {
+    menuBtn.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden ? openMenu() : closeMenu(); });
+    window.addEventListener('click', (e) => {
+      if (!menu.hidden && !e.target.closest('#dvs')) closeMenu();
+    }, true);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) closeMenu(); });
+  }
+
+  document.getElementById('prev').addEventListener('click', (e) => { e.stopPropagation(); prev(); });
+  document.getElementById('next').addEventListener('click', (e) => { e.stopPropagation(); next(); });
 
   window.addEventListener('keydown', (e) => {
-    if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); go(i+1); }
-    else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); go(i-1); }
+    if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(slides.length - 1);
     else if (e.key.toLowerCase() === 'f') document.documentElement.requestFullscreen?.();
   });
-  document.getElementById('stage').addEventListener('click', () => go(i+1));
+  document.getElementById('stage').addEventListener('click', () => next());
 
   // basic swipe
   let x0 = null;
@@ -224,11 +453,686 @@ body.is-clean .chrome{display:none}
   window.addEventListener('touchend', (e) => {
     if (x0 == null) return;
     const dx = e.changedTouches[0].clientX - x0;
-    if (Math.abs(dx) > 40) go(dx < 0 ? i + 1 : i - 1);
+    if (Math.abs(dx) > 40) (dx < 0 ? next() : prev());
     x0 = null;
   }, { passive: true });
 
+  /* the hint retires itself once you have obviously read it */
+  if (hint) {
+    const retire = () => { hint.classList.add('gone'); };
+    ['keydown','click','wheel','touchstart'].forEach((k) =>
+      window.addEventListener(k, retire, { once: true, capture: true, passive: true }));
+    setTimeout(retire, 9000);
+  }
+
   render();
+})();
+</script>
+
+<script>/*DECK AUDIO — sound effects and music beds*/
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   Everything here is OPTIONAL and silent until `npm run gen:audio` has written assets/sfx/ and
+   assets/music/. Until then every play() fails its own load and is ignored.
+
+   DELIBERATELY NO LIBRARY AND NO WEB AUDIO GRAPH. What this needs is a pool for overlapping
+   one-shots and two elements ramping against each other — about 150 lines, against 26KB (Howler)
+   or 355KB (Tone.js) inlined into a file whose whole point is being self-contained. And one hard
+   constraint settles it anyway: piping a media element through createMediaElementSource() outputs
+   PERMANENT silence when the element's source is cross-origin, which under file:// a relative src
+   is. Gain nodes would have been the "proper" way and would have silently played nothing.
+
+   LEVELS ARE DUPLICATED FROM scripts/audio-script.mjs ON PURPOSE. The deck cannot read a
+   manifest.json over file:// (fetch of a local file is blocked), and a wrong level is a far cheaper
+   failure than a broken deck. Keep the two in step by hand.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  if(window.__deckAudio) return;
+  /* location-aware: deck/dist/standalone.html sits one directory deeper than deck/index.html, so a
+     hardcoded '../assets/' resolves one level short from there */
+  var BASE=/\/dist\//.test(location.pathname)?'../../assets/':'../assets/';
+  var SFX_BASE=BASE+'sfx/', MUSIC_BASE=BASE+'music/';
+
+  /* ── AUTHOR THESE ────────────────────────────────────────────────────────────────────────────
+     One entry per id in scripts/audio-script.mjs. An id with no gain here is never played, which
+     is the intended way to retire a sound: drop it from this map and nothing can fire it. */
+  var SFX_GAIN={ 'slide-advance':0.26 };
+  /* Music beds, zoned by 1-BASED slide number. `resume` picks a bed up where it left off rather
+     than restarting its first bar every time you re-enter its zone — on a deck that leaves and
+     re-enters a zone, restarting means the opening few seconds are the only part anyone hears.
+     GAINS: beds are normalised to -20 LUFS by gen-audio.mjs, so a 0.3-ish multiplier lands them
+     around -30 LUFS, which is inaudible on laptop speakers next to narration at -20. 0.8 puts a
+     -20 LUFS bed at roughly -21.4: a real bed. Start there, then measure. */
+  var BEDS=[ {id:'bed-open',from:1,to:2,gain:0.80,resume:true},
+             {id:'bed-close',from:3,to:99,gain:0.86,resume:true} ];
+  /* Room tone under a shot — the location's own sound beneath its music. A bed alone reads as
+     SCORED; room tone under it reads as SHOT. Keyed by the value of data-amb on a slide. */
+  var AMB_GAIN={};
+  /* Same-id retrigger guard. A burst of identical taps under a voice is worse than silence. */
+  var MIN_GAP={ 'slide-advance':300 };
+  /* ────────────────────────────────────────────────────────────────────────────────────────── */
+
+  /* DUCKING. Broadcast practice, and the thing that lets a bed be loud enough to feel without
+     fighting the voice: drop it ~8dB while a narration line is actually speaking, restore it the
+     moment the line ends. Without this one level has to serve both cases and neither works. */
+  var DUCK=0.40, ducked=false, duckAt=1;
+  var master=1, muted=false, enabled=false;
+
+  /* ---- SFX ----
+     A small pool per id: one element cuts a sound off when it retriggers, a fresh element per play
+     leaks, three rotating elements cover any realistic overlap. */
+  var pool={}, lastPlayed={};
+  function sfx(id){
+    if(!enabled||muted||!SFX_GAIN[id]) return;
+    var now=Date.now(), gap=MIN_GAP[id]||120;
+    if(lastPlayed[id] && now-lastPlayed[id]<gap) return;
+    lastPlayed[id]=now;
+    var p=pool[id];
+    if(!p){ p=pool[id]=[]; for(var k=0;k<3;k++){ var a=new Audio(); a.preload='auto'; a.src=SFX_BASE+id+'.mp3'; p.push(a); } p.i=0; }
+    var el=p[p.i%3]; p.i++;
+    try{ el.volume=Math.max(0,Math.min(1,SFX_GAIN[id]*master)); el.currentTime=0;
+         var pr=el.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){}
+  }
+
+  /* ---- MUSIC BEDS ----
+     EQUAL-POWER crossfade, not two opposing linear ramps. Linear amplitude fades of two
+     uncorrelated beds dip ~3dB at the midpoint — an audible hole exactly where the transition is
+     meant to be seamless. cos/sin keeps summed power flat across the fade. */
+  var slots=[{el:null,id:null,gain:0},{el:null,id:null,gain:0}], cur=0, fadeT=null, curBedId=null, bedAt={};
+  function bedFor(slide1){
+    for(var k=0;k<BEDS.length;k++) if(slide1>=BEDS[k].from&&slide1<=BEDS[k].to) return BEDS[k];
+    return null;
+  }
+  function applyBedVolumes(){
+    for(var k=0;k<2;k++){ var sl=slots[k];
+      if(sl.el) try{ sl.el.volume=Math.max(0,Math.min(1,sl.gain*duckAt*(muted?0:master))); }catch(e){} }
+    applyAmb();
+  }
+  /* ramped, not stepped: a hard jump in bed level under a voice is more noticeable than the duck */
+  var duckT=null;
+  function duck(on){
+    if(ducked===!!on) return; ducked=!!on;
+    var from=duckAt, to=on?DUCK:1, t0=Date.now(), DUR=on?260:520;   /* fast in, gentle out */
+    clearInterval(duckT);
+    duckT=setInterval(function(){
+      var x=Math.min(1,(Date.now()-t0)/DUR);
+      duckAt=from+(to-from)*x; applyBedVolumes();
+      if(x>=1){ clearInterval(duckT); duckT=null; }
+    },40);
+  }
+  /* durMs overrides the crossfade length: 1600ms is right for moving between two long section beds
+     and completely wrong for a stinger under an 8-second shot. */
+  function toBed(bed,durMs){
+    if(!enabled||!bed||bed.id===curBedId) return;
+    curBedId=bed.id;
+    var nextIdx=1-cur, from=slots[cur], to=slots[nextIdx];
+    if(!to.el) to.el=document.getElementById(nextIdx?'bed-b':'bed-a');
+    if(!to.el) return;
+    if(from.el&&from.id) try{ bedAt[from.id]=from.el.currentTime||0; }catch(e){}
+    to.id=bed.id;
+    try{ to.el.src=MUSIC_BASE+bed.id+'.mp3'; to.el.volume=0; to.gain=0;
+         /* currentTime can only be set once metadata has loaded, and setting .src above discards it */
+         var at=bed.resume?(bedAt[bed.id]||0):0;
+         if(at>0) to.el.addEventListener('loadedmetadata',function h(){
+           to.el.removeEventListener('loadedmetadata',h);
+           try{ if(at<(to.el.duration||0)-2) to.el.currentTime=at; }catch(e){}
+         });
+         var pr=to.el.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){}
+    var startGain=from.gain, target=bed.gain, t0=Date.now(), DUR=durMs>0?durMs:1600;
+    clearInterval(fadeT);
+    fadeT=setInterval(function(){
+      var x=Math.min(1,(Date.now()-t0)/DUR);
+      to.gain=target*Math.sin(x*Math.PI/2);        /* equal power in  */
+      from.gain=startGain*Math.cos(x*Math.PI/2);   /* equal power out */
+      applyBedVolumes();
+      if(x>=1){ clearInterval(fadeT); fadeT=null;
+        if(from.el){ try{ from.el.pause(); }catch(e){} } from.gain=0; from.id=null; }
+    },40);
+    cur=nextIdx;
+  }
+  function stopBeds(){
+    clearInterval(fadeT); fadeT=null; curBedId=null;
+    for(var k=0;k<2;k++){ var sl=slots[k]; sl.gain=0; sl.id=null;
+      if(sl.el) try{ sl.el.pause(); }catch(e){} }
+    /* hard stop, not a fade: this is Stop being pressed, and a room that keeps breathing for
+       another 900ms after the user asked for silence is a bug, not a nicety */
+    clearInterval(ambT); ambT=null; ambGain=0; ambId=null;
+    if(ambEl) try{ ambEl.pause(); }catch(e){}
+  }
+
+  /* ---- ROOM TONE ---- ducked with the beds, so the voice still wins */
+  var ambEl=null, ambT=null, ambGain=0, ambId=null;
+  function applyAmb(){
+    if(ambEl) try{ ambEl.volume=Math.max(0,Math.min(1,ambGain*duckAt*(muted?0:master))); }catch(e){}
+  }
+  function ambRamp(to,dur,thenPause){
+    var from=ambGain, t0=Date.now();
+    clearInterval(ambT);
+    ambT=setInterval(function(){
+      var x=dur>0?Math.min(1,(Date.now()-t0)/dur):1;
+      ambGain=from+(to-from)*x; applyAmb();
+      if(x>=1){ clearInterval(ambT); ambT=null;
+        if(thenPause&&ambEl){ try{ ambEl.pause(); }catch(e){} ambId=null; } }
+    },40);
+  }
+  function amb(id,fadeMs){
+    if(!enabled||!AMB_GAIN[id]||id===ambId) return;
+    if(!ambEl) ambEl=document.getElementById('film-amb');
+    if(!ambEl) return;
+    ambId=id; ambGain=0;
+    try{ ambEl.src=SFX_BASE+id+'.mp3'; ambEl.volume=0; ambEl.currentTime=0;
+         var pr=ambEl.play(); if(pr&&pr.catch) pr.catch(function(){}); }catch(e){}
+    ambRamp(AMB_GAIN[id],fadeMs>0?fadeMs:800,false);
+  }
+  function ambStop(fadeMs){
+    if(!ambEl||!ambId){ if(ambEl){ try{ ambEl.pause(); }catch(e){} } ambId=null; return; }
+    ambRamp(0,fadeMs>0?fadeMs:900,true);
+  }
+
+  /* Mute silences EVERYTHING including narration — the only reading of "audio off" that is not a
+     lie. A mute button that leaves a voice talking is broken. */
+  var btn=document.getElementById('mutebtn');
+  function paintBtn(){
+    if(!btn) return;
+    btn.setAttribute('aria-pressed',muted?'true':'false');
+    btn.setAttribute('aria-label',muted?'Unmute the audio':'Mute the audio');
+  }
+  function setMuted(v){
+    muted=!!v;
+    var vo=document.getElementById('vo-audio');
+    if(vo) try{ vo.muted=muted; }catch(e){}
+    applyBedVolumes(); paintBtn();
+  }
+  if(btn){ btn.addEventListener('click',function(e){ e.stopPropagation(); setMuted(!muted); }); paintBtn(); }
+  window.addEventListener('keydown',function(e){
+    if(e.key==='m'||e.key==='M'){ e.preventDefault(); setMuted(!muted); }
+  },true);
+
+  window.__deckAudio={
+    sfx:sfx, toBed:toBed, stopBeds:stopBeds, bedFor:bedFor, amb:amb, ambStop:ambStop,
+    /* autoplay owns the on/off switch: sounds firing while someone quietly clicks through a slide
+       in a meeting would be unwelcome, and the click that starts autoplay is also the user gesture
+       that satisfies the browser's autoplay policy. */
+    enable:function(){ enabled=true; }, disable:function(){ enabled=false; duck(false); stopBeds(); },
+    duck:duck, isMuted:function(){ return muted; }, setMuted:setMuted
+  };
+})();
+</script>
+
+<script>/*CHATRUN — scripted playback for a product mock*/
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   Put data-chat="<name>" on a slide, define CHAT_SCRIPTS['<name>'], and it plays when that slide
+   goes live and RESETS when it leaves — so a presenter can step back into a beat and watch it run
+   again from the top. This is how you show a product doing something without recording a screencast
+   that goes stale the week after you record it.
+
+   A step is a one-key object:
+     {wait:ms}            hold
+     {type:'…'}           type into .cr-typed at 28ms/char, .cr-input gets .typing while it runs
+     {send:1}             pop .cr-send, reveal the user bubble, empty the composer
+     {send:'.selector'}   ...revealing that element as the user bubble instead of the default
+     {show:'.sel'}        add .is-on / remove .is-off
+     {hide:'.sel'}        add .is-off / remove .is-on
+     {add:['.sel','cls']} {rm:['.sel','cls']}
+
+   REVEAL IS ALWAYS A CLASS, NEVER A STYLE ANIMATED FROM JS. That keeps every intermediate frame
+   coherent for a presenter who stops mid-beat, and it means prefers-reduced-motion collapses the
+   whole thing for free through the global rule at the top of this file.
+
+   RESET UNDOES WHAT IT DID, rather than a hardcoded list of selectors to clean. The version this
+   was lifted from enumerated its own project's class names, which meant a fork silently stopped
+   resetting. Every mutation is recorded as it happens and reversed exactly.
+
+   Worked example — pair it with markup carrying .cr-typed, .cr-input, .cr-send and the bubbles:
+
+     window.CHAT_SCRIPTS = {
+       'ask': [
+         {wait:640},
+         {type:'Does this plan cover early-stage claims?'},
+         {wait:360},{send:1},
+         {wait:640},{show:'.thinking'},
+         {wait:1500},{hide:'.thinking'},{show:'.sources'},
+         {wait:1050},{show:'.answer'}
+       ]
+     };
+
+   Then tell autoplay how long it runs with data-chat-ms on the same element — sum the {wait} steps
+   plus 28ms per typed character, and round up a few hundred ms so the last reveal is never
+   mid-flight. Without it autoplay falls back to __autoplayTiming.defaultChatMs, which is long
+   enough to be safe rather than right.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var REDUCE=matchMedia('(prefers-reduced-motion:reduce)');
+  var SCRIPTS=window.CHAT_SCRIPTS||{};
+
+  function make(host,steps){
+    var timers=[], typer=null, undo=[];
+    function q(s){ return host.querySelector(s); }
+    /* scaled by the same global pace as everything else: these {wait} steps are authored animation
+       timing, and leaving them at 1x while the rest of the deck compressed is most of why
+       unattended playback feels slow */
+    function T(fn,ms){ var id=setTimeout(fn,REDUCE.matches?0:window.__pace(ms)); timers.push(id); return id; }
+    /* every class change goes through here, and is recorded so reset() can reverse exactly it */
+    function setCls(el,cls,on){
+      if(!el) return;
+      var had=el.classList.contains(cls);
+      if(had===!!on) return;
+      undo.push([el,cls,had]);
+      el.classList.toggle(cls,!!on);
+    }
+    function reset(){
+      timers.forEach(clearTimeout); timers=[];
+      if(typer){ clearInterval(typer); typer=null; }
+      for(var k=undo.length-1;k>=0;k--) undo[k][0].classList.toggle(undo[k][1],undo[k][2]);
+      undo=[];
+      var t=q('.cr-typed'); if(t) t.textContent='';
+      var th=q('.cr-thread'); if(th) th.scrollTop=0;
+    }
+    function toBottom(){ var t=q('.cr-thread'); if(t) T(function(){ t.scrollTop=t.scrollHeight; },40); }
+    function typeIt(txt,done){
+      var el=q('.cr-typed'), inp=q('.cr-input');
+      if(!el){ done(); return; }
+      setCls(inp,'typing',true);
+      if(REDUCE.matches){ el.textContent=txt; done(); return; }
+      var n=0;
+      typer=setInterval(function(){
+        el.textContent=txt.slice(0,++n);
+        if(n>=txt.length){ clearInterval(typer); typer=null; done(); }
+      },Math.max(12,window.__pace(28)));   /* 12ms floor: faster than this stops reading as typing */
+    }
+    function exec(i){
+      if(i>=steps.length) return;
+      var s=steps[i], k; for(k in s) break;
+      var v=s[k], next=function(){ exec(i+1); };
+      if(k==='wait')      T(next,v);
+      else if(k==='type') typeIt(v,function(){ T(next,0); });
+      else if(k==='send'){
+        var b=q('.cr-send');
+        if(b){ setCls(b,'pop',true); T(function(){ setCls(b,'pop',false); },190); }
+        setCls(q(typeof v==='string'?v:'.cr-thread > .cr-u'),'is-on',true); toBottom();
+        /* the composer empties, the way it does when you actually press send */
+        T(function(){ var t2=q('.cr-typed'); if(t2) t2.textContent=''; setCls(q('.cr-input'),'typing',false); },170);
+        T(next,140);
+      }
+      else if(k==='show'){ var e1=q(v); setCls(e1,'is-off',false); setCls(e1,'is-on',true); toBottom(); T(next,0); }
+      else if(k==='hide'){ var e2=q(v); setCls(e2,'is-on',false); setCls(e2,'is-off',true); T(next,0); }
+      else if(k==='add'){ setCls(q(v[0]),v[1],true); T(next,0); }
+      else if(k==='rm'){ setCls(q(v[0]),v[1],false); T(next,0); }
+      else T(next,0);
+    }
+    return { play:function(){ reset(); exec(0); }, stop:reset };
+  }
+
+  function init(){
+    [].forEach.call(document.querySelectorAll('[data-chat]'),function(host){
+      var name=host.getAttribute('data-chat'), steps=SCRIPTS[name];
+      if(!steps){ console.warn('[chatrun] no script named "'+name+'" — set window.CHAT_SCRIPTS before this block'); return; }
+      var r=make(host,steps), was=false;
+      function live(){ return host.classList.contains('on')||host.classList.contains('active'); }
+      /* guard on the TRANSITION, not on every class mutation — the engine rewrites className
+         several times per beat and an unguarded observer would restart the script each time */
+      new MutationObserver(function(){
+        var now=live(); if(now===was) return; was=now;
+        if(now) r.play(); else r.stop();
+      }).observe(host,{attributes:true,attributeFilter:['class']});
+      was=live(); if(was) r.play();
+    });
+  }
+  if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+
+<script>/*AUTOPLAY — play the whole deck unattended*/
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   Drives the SAME __next() every arrow key and click already uses, rather than re-implementing
+   what a press does a second time. Its only real job is deciding WHEN to press.
+
+   A slide that owns its own beats already plays them on its own timers the moment it goes active;
+   pressing again mid-sequence would race that timer and skip a beat. So while a slide reports it is
+   still mid-sequence this driver only WATCHES, and advances once it reports its last beat. That
+   watch is __subProg() — the same {i,n} the progress bar reads, so nothing here is a second source
+   of truth about pacing.
+
+   Content with no such hook gets a dwell from what it actually is:
+     · a slide carrying a non-looping <video>  → the clip's own remaining duration. Never a
+       constant: a reading-time dwell capped at 5s applied to an 8s shot cuts the shot at 44%.
+     · a slide with data-chat                  → data-chat-ms, or defaultChatMs as a safe fallback
+     · anything else                           → READ TIME from its own innerText, so it scales
+       with what is on screen instead of a guess
+
+   NARRATION, if assets/voiceover/ exists, overrides all of that — "timed to the content" in the
+   most literal sense available: the clip's own length rather than a guess about it. With no files
+   the probe fails once, quietly, and every dwell is byte-identical to having no narration at all.
+
+   THE RECORDER'S CONTRACT: window.__autoplay = {start, stop, running}. Both video exporters call
+   start() and poll running. #autobtn's aria-pressed mirrors it as a fallback.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+(function(){
+  if(window.__autoplayInit) return; window.__autoplayInit=true;
+  if(typeof window.__next!=='function' || typeof window.__isLocked!=='function') return;
+  var btn=document.getElementById('autobtn');
+
+  var TIMING=window.__autoplayTiming={
+    poll:300,             /* how often to re-check a slide that is still playing its own beats */
+    lockPoll:120,         /* how often to re-check while the deck is mid-transition */
+    postSeqHold:850,      /* pause on a finished sequence's last frame before moving on */
+    postClipHold:340,     /* breath after a narration line finishes — NOT the full reading dwell */
+    /* A SHOT IS PACED TO THE SHOT. These are fallbacks and guards, not the pace — see the video
+       branch in tick(), which reads the element's own remaining duration. */
+    filmMs:7800,          /* fallback: a clip whose duration the element will not report */
+    filmTail:400,         /* held on the last frame, and the margin covering a clip that started
+                             playing a little after its slide arrived */
+    filmMaxMs:14000,      /* guard: a nonsense duration must not park the deck on one shot */
+    defaultChatMs:6500,   /* fallback for a data-chat host with no data-chat-ms */
+    /* how hard to compress each slide's own authored beat gaps while autoplaying. __pace floors
+       every result at 1250ms, so the shortest authored gaps land on the floor either way and no
+       beat loses its own CSS transition. */
+    beatPace:0.42,
+    slide:{base:1100,perWord:85,min:2300,max:5000}   /* the reading-time model */
+  };
+
+  function speed(){ var v=+window.__autoplaySpeed; return v>0?v:1; }
+  function ms(v){ return Math.max(30,v/speed()); }
+  function words(el){ if(!el) return 0; var t=(el.innerText||'').trim(); return t?t.split(/\s+/).length:0; }
+  function readTime(el,cfg){ return Math.max(cfg.min,Math.min(cfg.max,cfg.base+words(el)*cfg.perWord)); }
+
+  /* A cheap fingerprint of "where we are", so the one thing this driver must never do — spin
+     forever pressing at the end of the deck — is caught by OBSERVING the deck stall, rather than
+     by this file trying to predict which press is the last one. */
+  function signature(){
+    var slides=document.querySelectorAll('.slide'), s=document.querySelector('.slide.active');
+    if(!s) return 'none';
+    var idx=[].indexOf.call(slides,s);
+    var prog=(typeof s.__subProg==='function')?s.__subProg():null;
+    return idx+'|'+(prog?prog.i:'');
+  }
+
+  var on=false, timer=null;
+  function schedule(delay){ clearTimeout(timer); timer=setTimeout(tick,ms(delay)); }
+
+  /* ══ OPTIONAL VOICEOVER ═══════════════════════════════════════════════════════════════════════
+     Audio loads fine over file:// — this is an <audio src>, not a fetch/XHR, and the CORS rule that
+     blocks reading a JSON manifest from disk does not apply to media elements. Which is why
+     duration is learned from the loaded clip rather than from a manifest.
+     __autoplaySpeed deliberately does NOT touch anything in this block: it scales dwells this
+     driver invents, and it cannot make a human voice talk faster without distorting it. */
+  var VO_BASE=/\/dist\//.test(location.pathname)?'../../assets/voiceover/':'../assets/voiceover/';
+  var vo={probed:false,available:false};
+  /* Expect ONE "net::ERR_FILE_NOT_FOUND" in devtools the first time Play is pressed without ever
+     having run gen-voiceover.mjs. That is the browser logging the 404 this probe deliberately
+     causes — over file://, loading a resource and catching its error event is the only CORS-safe
+     way to ask "does this exist". Not a pageerror, and it fires at most once per page load. */
+  function probeVoice(cb){
+    if(vo.probed){ cb(vo.available); return; }
+    var a=document.getElementById('vo-audio');
+    if(!a){ vo.probed=true; vo.available=false; cb(false); return; }
+    var done=false;
+    function fin(ok){ if(done) return; done=true; vo.probed=true; vo.available=ok; cb(ok); }
+    a.addEventListener('loadedmetadata',function(){ fin(true); },{once:true});
+    a.addEventListener('error',function(){ fin(false); },{once:true});
+    a.src=VO_BASE+'slide-01.mp3'; a.load();
+    setTimeout(function(){ fin(false); },1200);   /* a cap, not a real wait — local disk is instant */
+  }
+
+  /* One id per STORY BEAT, matching scripts/voiceover-script.mjs exactly: the slide's own 1-based
+     index. A slide that owns several beats carries a QUEUE — data-vo-lines="3" narrates
+     slide-07, slide-07-2, slide-07-3 back to back. Sizing rule, measured: ~2.2 words/second. */
+  function voIdFor(s){
+    var idx=[].indexOf.call(document.querySelectorAll('.slide'),s);
+    var base='slide-'+String(idx+1).padStart(2,'0');
+    var n=Math.max(1,+s.dataset.voLines||1);
+    if(n<2) return base;
+    var ids=[base]; for(var j=2;j<=n;j++) ids.push(base+'-'+j);
+    return ids;
+  }
+
+  var narratedKey=null, clipDone=true, spokeKey=null, cuedKey=null, qToken=0;
+
+  /* Plays ONE line and calls back when it ends (or fails, or never fires `ended`). Deliberately
+     does NOT own clipDone or the duck — playClip does, so a run of lines is one continuous duck
+     rather than the bed pumping up and down between every sentence. */
+  function playOne(voId,onDone){
+    var a=document.getElementById('vo-audio');
+    if(!a){ onDone(); return; }
+    var settled=false;
+    function fin(){ if(settled) return; settled=true; onDone(); }
+    a.pause(); a.onended=null; a.onloadedmetadata=null; a.onerror=null;
+    a.onerror=fin;      /* a line with no mp3 on disk simply hands over to the next one */
+    a.onended=fin;
+    a.onloadedmetadata=function(){
+      /* SAFETY NET for "ended somehow never fired", not the pace. +1500ms, not +500ms: measured
+         against a real 8.68s clip, 500ms of margin lost the race to playback jitter and the net
+         fired first — which turned an 8.7s clip into a ~14.4s wait. */
+      setTimeout(fin,(a.duration||0)*1000+1500);
+      a.currentTime=0; var p=a.play(); if(p&&p.catch) p.catch(fin);
+    };
+    a.src=VO_BASE+voId+'.mp3'; a.load();
+  }
+
+  /* ── narration is a QUEUE, which is what lets a long slide be narrated at all ──────────────────
+     Picking a single line by which third of __subProg you happen to be in fails in both directions
+     at once: most of the slide is silent, and any line long enough to say something is cut off the
+     moment progress crosses into the next third. So a beat hands over its whole run of lines and
+     they play back to back, each starting when the last ends.
+     qToken invalidates an abandoned queue: one <audio> element is shared by every line, so when a
+     new beat starts talking the old chain has to stop SCHEDULING, not merely stop being heard. */
+  var GATE_POLL=80, GATE_MAX=9000;
+  /* Ducking follows the LINE, not the queue. Following the queue keeps a run of lines as one duck,
+     which is right — but a GATED line leaves the queue open while it waits, and the bed then sits
+     ducked through the whole wait. So release on line end, after a bridge: a line that follows
+     immediately cancels the release, a gated wait is longer than the bridge and lets the music up. */
+  var DUCK_BRIDGE=420, unduckT=null;
+  function duckOn(){ clearTimeout(unduckT); unduckT=null; if(window.__deckAudio) window.__deckAudio.duck(true); }
+  function duckOffSoon(){ clearTimeout(unduckT);
+    unduckT=setTimeout(function(){ unduckT=null; if(window.__deckAudio) window.__deckAudio.duck(false); },DUCK_BRIDGE); }
+  /* BREATHING ROOM between queued lines, and ACROSS beats too. `ended` fires and the next line
+     starts in the same tick, so separate sentences run together with no pause anywhere. A FLOOR,
+     not an alternative to a gate — a gated line starts at whichever comes later, so gaining a
+     pause can never cost the sync. */
+  var LINE_GAP=680, lastEndAt=0;
+
+  function playClip(ids,gates){
+    var list=(typeof ids==='string')?[ids]:ids.slice();
+    var gl=gates||[], gi=0, firstLine=true;
+    var token=++qToken;
+    clipDone=false;
+    (function step(){
+      if(token!==qToken) return;                               /* a newer beat owns the voice now */
+      var id=list.shift(), gate=gl[gi++];
+      if(!id){ clipDone=true; duckOffSoon(); return; }
+      var play=function(){ duckOn(); playOne(id,function(){ lastEndAt=Date.now(); duckOffSoon(); step(); }); };
+      var floorMs=firstLine?Math.max(0,LINE_GAP-(Date.now()-lastEndAt)):LINE_GAP;
+      firstLine=false;
+      var t0=Date.now();
+      (function tryStart(){
+        if(token!==qToken) return;
+        var el=Date.now()-t0;
+        /* GATE_MAX is a hang guard on the gate, not a pace: a gate that never opens must not park
+           the deck on one beat forever. */
+        if(el>=floorMs && ((typeof gate!=='function')||gate()||el>=GATE_MAX)){ play(); return; }
+        setTimeout(tryStart,GATE_POLL);
+      })();
+    })();
+  }
+
+  /* What releases each queued line. Two kinds, and both exist because a line that speaks before its
+     words are on screen is the same defect as one that speaks after they have gone.
+       data-vo-delay="4200"  hold the FIRST line until the slide's own copy has arrived. A plain
+                             time gate is right here precisely because the thing being waited for IS
+                             a time-based CSS animation with no state to read.
+       data-vo-at="0,2,4"    per line, the __subProg().i value that line waits for. NOTE the
+                             convention: __subProg returns {i:cur+1}, so these are i values, one
+                             AHEAD of the driver's own step index. Line 1 is never gated. */
+  function gatesFor(el,ids){
+    if(!el||!ids) return null;
+    /* voIdFor returns a BARE STRING for a single-line beat and an array otherwise. Normalise here
+       or the delay branch runs .map on a string and throws, which stops the whole run. */
+    var list=(typeof ids==='string')?[ids]:ids;
+    if(!list.length) return null;
+    ids=list;
+    var ds=el.dataset||{}, gates=null, delay=+(ds.voDelay||0);
+    if(delay>0){
+      var t0=Date.now();
+      gates=ids.map(function(_,k){ return k===0?function(){ return Date.now()-t0>=delay; }:null; });
+    }
+    if(ids.length<2) return gates;
+    if(ds.voAt){
+      var at=ds.voAt.split(',').map(function(x){ return parseInt(x,10)||0; });
+      return ids.map(function(_,k){
+        var need=at[k], pre=gates&&gates[k];
+        if(!(need>0)) return pre||null;
+        return function(){
+          var q=(typeof el.__subProg==='function')?el.__subProg():null;
+          return (!pre||pre()) && (!q||q.i>=need);   /* no progress hook: never block */
+        };
+      });
+    }
+    return gates;
+  }
+
+  function tick(){
+    if(!on) return;
+    try{
+      if(window.__isLocked()){ schedule(TIMING.lockPoll); return; }
+      var s=document.querySelector('.slide.active');
+      if(!s){ schedule(TIMING.poll); return; }
+      var prog=(typeof s.__subProg==='function')?s.__subProg():null;
+      var voId=voIdFor(s);
+      var slideIdx=[].indexOf.call(document.querySelectorAll('.slide'),s);
+      var beatKey=slideIdx+'|'+(voId||'');
+
+      /* Start this beat's narration the FIRST time we see the beat — BEFORE the mid-sequence
+         early-return below, which is the whole reason a stepped slide would otherwise get none:
+         its beats are still running at this point, and its line is meant to play over them. Keyed
+         so re-entry is idempotent — a duplicate key is what narrates a closing slide twice. */
+      var justStarted=false;
+      if(vo.available && voId && beatKey!==narratedKey){
+        narratedKey=beatKey; justStarted=true; spokeKey=beatKey;
+        playClip(voId,gatesFor(s,voId));
+      }
+
+      /* SOUND CUES. tick() is the one place that has already worked out what kind of beat this is,
+         so the cue table lives here rather than in a second traversal that could disagree with it.
+         Keyed on beatKey so a cue fires once per beat, not on every poll. */
+      if(window.__deckAudio && beatKey!==cuedKey){
+        var A=window.__deckAudio, firstSee=cuedKey!==null;
+        cuedKey=beatKey;
+        if(firstSee) A.sfx('slide-advance');
+        var bed=A.bedFor(slideIdx+1);
+        if(bed) A.toBed(bed,0);
+        if(s.dataset.amb) A.amb(s.dataset.amb,1600); else A.ambStop(700);
+      }
+
+      if(prog && prog.n>0 && prog.i<prog.n-1){ schedule(TIMING.poll); return; }   /* still playing itself */
+
+      var dwell, clipPaces=false;
+      if(prog){ dwell=TIMING.postSeqHold; }            /* the slide's own beats owned the pace */
+      else if(s.dataset.chat){ dwell=window.__pace(+s.dataset.chatMs||TIMING.defaultChatMs); }
+      else{
+        /* A SLIDE WITH A CLIP ON IT PLAYS ITS CLIP. Read the length off the element instead of
+           guessing: a reading-time dwell is a number about TEXT, and applying it to an 8s shot
+           cuts the shot to about 3.5s. A LOOPING video is excluded on purpose — it has no end to
+           play to, and pacing to its duration would park the deck on it. */
+        var v=s.querySelector('video');
+        var left=(v && !v.hasAttribute('loop') && isFinite(v.duration) && v.duration>0)
+                 ? (v.duration-(v.currentTime||0))*1000 : 0;
+        if(left>0) dwell=Math.min(left+TIMING.filmTail,TIMING.filmMaxMs);   /* clipPaces stays false */
+        else{ dwell=readTime(s,TIMING.slide); clipPaces=true; }
+      }
+
+      /* Where the clip owns the pace, wait for it — that IS pacing to the content rather than to a
+         guess about it. Where the visuals own the pace, a clip still talking still gets to finish
+         before we move, so a line is never cut off mid-sentence. */
+      clearTimeout(timer);
+      if(vo.available && !clipDone){ schedule(TIMING.poll); return; }
+      if(justStarted && clipPaces){ schedule(TIMING.poll); return; }   /* let it be heard */
+      /* THE DEAD-AIR BUG. A line finishes and then the FULL reading-time dwell still runs before
+         advancing. readTime() exists to pace a slide that has NO narration; once a clip has spoken
+         for this beat it has already done that job, so all that is owed is a breath. */
+      if(spokeKey===beatKey && clipPaces){ timer=setTimeout(advance,ms(TIMING.postClipHold)); return; }
+      timer=setTimeout(advance,ms(dwell));
+    }catch(e){ console.warn('[autoplay] stopped on error:',e); stop(); }
+  }
+
+  function advance(){
+    if(!on) return;
+    try{
+      /* MUST re-check the lock here, not only in tick(). advance() is also reached straight from a
+         clip's `ended` event, which can land mid-transition — and __next() silently returns when
+         locked, so the press is swallowed, nothing moves, and the stall guard below then concludes
+         the deck has run out and stops autoplay dead. Defer instead of burning the press. */
+      if(window.__isLocked()){ schedule(TIMING.lockPoll); return; }
+      /* NEVER CUT A LINE OFF. The per-branch guards in tick() each cover their own case and between
+         them still leave holes, so the check lives HERE instead: advance() is the single door every
+         path goes through, including a clip's own `ended` handler. One guard, no holes. */
+      if(vo.available && !clipDone){ schedule(TIMING.poll); return; }
+      var before=signature();
+      window.__next();
+      schedule(TIMING.poll);
+      /* stall guard: if NOTHING moved after a generous multiple of the poll interval, __next() was
+         a no-op — the deck has nowhere left to go. Stop instead of ticking forever. */
+      setTimeout(function(){ if(on && signature()===before) stop(); },ms(TIMING.poll*4));
+    }catch(e){ console.warn('[autoplay] stopped on error:',e); stop(); }
+  }
+
+  function paint(){
+    if(!btn) return;
+    btn.setAttribute('aria-pressed',on?'true':'false');
+    btn.setAttribute('aria-label',on?'Stop the automatic playthrough':'Play the deck automatically');
+  }
+  function start(){
+    if(on) return; on=true;
+    paint();
+    document.body.classList.add('autoplaying');
+    window.__deckPace=TIMING.beatPace;   /* compress every slide's own authored gaps to match */
+    /* __hold is the existing opt-out the capture tooling already uses. While autoplay is running,
+       AUTOPLAY owns every advance — a slide that hands itself over on its own timer knows nothing
+       about narration and would cut a line off mid-word. */
+    window.__hold=true;
+    /* the click that got us here is also the user gesture the browser's autoplay policy wants, so
+       this is the correct moment to let sound start */
+    if(window.__deckAudio) window.__deckAudio.enable();
+    probeVoice(function(){});   /* fire-and-forget: tick() reads vo.available once it resolves */
+    schedule(200);
+  }
+  function stop(){
+    if(!on) return; on=false;
+    clearTimeout(timer); timer=null;
+    clearTimeout(unduckT); unduckT=null;     /* a pending un-duck must not fire after Stop */
+    paint();
+    document.body.classList.remove('autoplaying');
+    window.__deckPace=1;   /* hand normal, presenter-tuned pacing back to manual navigation */
+    window.__hold=false;
+    if(window.__deckAudio) window.__deckAudio.disable();
+    /* reset the narration key too: without this, pressing Play again on the same beat would treat
+       its line as already delivered and start the run in silence */
+    narratedKey=null; clipDone=true; cuedKey=null; spokeKey=null; qToken++;
+    var a=document.getElementById('vo-audio');
+    if(a){ a.onended=null; a.onerror=null; a.onloadedmetadata=null; a.pause(); }
+  }
+
+  /* THE CONTRACT both video exporters drive. Kept as an object rather than three globals so a page
+     can be asked `window.__autoplay?.running` without knowing whether autoplay exists at all. */
+  window.__autoplay={ start:start, stop:stop, get running(){ return on; } };
+  window.__autoplayStop=stop;   /* verification hook */
+
+  if(btn) btn.addEventListener('click',function(e){ e.stopPropagation(); on?stop():start(); });
+  /* Any OTHER manual navigation gesture cancels autoplay, in the CAPTURE phase so this fires before
+     the deck's own bubble-phase handlers. Cancel-only: never preventDefault or stopPropagation, so
+     the user's actual press still reaches next()/prev() and nothing double-fires. 'p' is this
+     driver's own shortcut and is handled before the cancel check, so pressing it to START playback
+     does not immediately stop itself. */
+  window.addEventListener('keydown',function(e){
+    if(e.key==='p'||e.key==='P'){ e.preventDefault(); on?stop():start(); return; }
+    if(!on) return;
+    if(['ArrowRight','ArrowLeft','ArrowUp','ArrowDown',' ','PageUp','PageDown','Home','End'].indexOf(e.key)>=0) stop();
+  },true);
+  window.addEventListener('click',function(e){
+    if(!on) return;
+    if(e.target&&e.target.closest&&e.target.closest('#autobtn')) return;
+    stop();
+  },true);
+  window.addEventListener('wheel',function(){ if(on) stop(); },{capture:true,passive:true});
+  window.addEventListener('touchstart',function(){ if(on) stop(); },{capture:true,passive:true});
 })();
 </script>
 </body>

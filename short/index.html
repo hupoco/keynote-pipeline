@@ -18,8 +18,13 @@
 <script type="module">
 /* Drives the deck through the cut list in edl.js on a plain timer, then stops — this file IS the
    recording target for `npm run export:short` (see scripts/export-video.mjs --page). Same #clean
-   contract as the deck itself: no chrome, so a capture of this page is exactly what it plays. */
-import { CUT } from './edl.js';
+   contract as the deck itself: no chrome, so a capture of this page is exactly what it plays.
+
+   THE CUT DOES NOT START ON LOAD. It waits for window.__autoplay.start(). That is not ceremony:
+   a recorder navigates here, arms a MediaRecorder, checks its audio calibration and only then
+   starts the take — several seconds during which a self-starting film has already thrown away
+   its opening shots. Same reason the deck's autoplay is a button and not an onload. */
+import { CUT, DURATION } from './edl.js';
 
 function fit() {
   const s = Math.min(1, innerWidth / 1600, innerHeight / 900);
@@ -29,23 +34,62 @@ fit(); addEventListener('resize', fit);
 
 const frame = document.getElementById('deck');
 let win = null;
+let timers = [];
+let running = false;
 
-frame.addEventListener('load', () => {
-  win = frame.contentWindow;
-  const tries = { n: 0 };
-  (function waitReady() {
-    let ok = false;
-    try { ok = typeof win.__go === 'function'; } catch (e) {}
-    if (!ok) { if (tries.n++ < 120) setTimeout(waitReady, 60); return; }
-    run();
+/* Resolves once the deck inside the iframe is actually drivable.
+
+   POLL FOR THE HOOK, don't wait on the load event and don't sleep a fixed amount. A flat wait is
+   either wasted time or a race and here it would be both, but the load event is worse: this is a
+   deferred module script, so the iframe can finish loading BEFORE this line runs, the listener then
+   never fires, and the cut silently never starts. Polling is correct whether we are early or late.
+   __go is also the right thing to wait for — the load event says the document arrived, not that its
+   engine has installed itself. */
+const ready = new Promise((resolve) => {
+  let tries = 0;
+  (function wait() {
+    let w = null;
+    try { w = frame.contentWindow; } catch (e) {}
+    if (w && typeof w.__go === 'function') { win = w; return resolve(w); }
+    if (tries++ < 200) return setTimeout(wait, 60);   /* 12s, then give up loudly */
+    console.warn('short: the deck never exposed __go — the cut cannot be driven');
+    resolve(null);
   })();
 });
 
-function run() {
-  CUT.forEach(({ t, slide }) => {
-    setTimeout(() => { try { win.__go(slide); } catch (e) {} }, t * 1000);
-  });
+const go = (slide) => { try { win && win.__go(slide); } catch (e) {} };
+
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function stop() { clearTimers(); running = false; }
+
+async function start() {
+  clearTimers();
+  /* SET SYNCHRONOUSLY, BEFORE THE AWAIT. The recorder starts a take by calling start() and then
+     polls `running` every 500ms, treating false as "the film has finished". Setting it after
+     `await ready` — even when `ready` has already resolved, because an await still defers a turn —
+     means the first poll sees false and the recorder stops. Measured: a 12s film recorded as 0.5s
+     of video, and the only other symptom was an A/V length warning.
+     It is also the honest semantic. `running` means "a take is in progress"; whether the deck
+     inside the iframe has finished booting is this file's problem, not the recorder's. */
+  running = true;
+  const w = await ready;
+  if (!w || !running) return;      /* stopped while we were waiting */
+  go(CUT.length ? CUT[0].slide : 0);
+  for (const { t, slide } of CUT) {
+    if (t > 0) timers.push(setTimeout(() => go(slide), t * 1000));
+  }
+  /* running goes false when the last hold expires. The recorder polls this to stop at the end of
+     the film instead of at its --seconds safety cap, which is what keeps the tail honest. */
+  timers.push(setTimeout(() => { running = false; }, DURATION * 1000));
 }
+
+/* The contract both exporters poll, shared with the deck. */
+window.__autoplay = { start, stop, get running() { return running; } };
+window.__shortReady = ready;
+window.__shortCut = CUT;
+window.__shortDuration = DURATION;
+/* Jump straight to cut entry i — for scrubbing a specific beat by hand. */
+window.__go = (i) => { stop(); const c = CUT[Math.max(0, Math.min(CUT.length - 1, i))]; if (c) go(c.slide); };
 </script>
 </body>
 </html>

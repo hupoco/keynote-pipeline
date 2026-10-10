@@ -17,14 +17,23 @@
     "build:standalone": "node scripts/embed-assets.mjs",
     "export:video": "node scripts/export-video.mjs",
     "export:video:headless": "node scripts/export-video-deterministic.mjs",
-    "export:short": "node scripts/export-video.mjs --page /short/index.html#clean --out short.mp4 --seconds 12"
+    "export:short": "node scripts/export-short.mjs"
   },
+  "comment:deps": [
+    "Pinned EXACT, not ranged. These are the versions that rendered the reference build, and two of",
+    "them are load-bearing beyond their API surface. playwright decides which Chromium runs, and",
+    "export-video.mjs's --audio-shift -38ms is a constant measured against that build's",
+    "AudioContext.baseLatency (0.021333) — the script asserts it and hard-exits on a 20% drift, so a",
+    "silent minor bump breaks video export outright. @google/genai floats a generative API: a caret",
+    "here means an unattended install changes what your prompts render into. Bump deliberately, and",
+    "re-run `export-video.mjs --probe` after any playwright bump."
+  ],
   "dependencies": {
-    "@google/genai": ">=1.0.0",
-    "lenis": "^1.3.25"
+    "@google/genai": "2.13.0",
+    "lenis": "1.3.25"
   },
   "devDependencies": {
-    "playwright": ">=1.40.0"
+    "playwright": "1.61.1"
   },
   "engines": {
     "node": ">=20.6.0"

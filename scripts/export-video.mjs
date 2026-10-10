@@ -160,7 +160,8 @@ if (!CONFORM_ONLY) {
 
   /* WHAT gets recorded. Defaults to the deck, byte-identically to before this line existed — the
      60-second short passes --page /short/index.html#clean. It implements the same contract this
-     script polls (#autobtn[aria-pressed] and .slide.active), so nothing else here changes. */
+     script polls (window.__autoplay.running, or #autobtn[aria-pressed] as a fallback, plus
+     .slide.active), so nothing else here changes. */
   await page.goto(`http://127.0.0.1:${PORT}${PAGE}`, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
 
@@ -320,9 +321,23 @@ if (!CONFORM_ONLY) {
     process.exit(1);
   }
 
-  /* dispatched in-page, not page.click(): clean mode makes the button display:none by design */
+  /* dispatched in-page, not page.click(): clean mode makes the button display:none by design.
+     Prefer the scripted handle over the button — a deck that ships without presenter chrome (or
+     renames the button) still exports, and getElementById(...).click() on a missing element throws
+     before a single frame is recorded. */
   if (FROM) await page.evaluate((n) => window.__go(n - 1), FROM);
-  await page.evaluate(() => document.getElementById('autobtn').click());
+  const started = await page.evaluate(() => {
+    if (window.__autoplay && typeof window.__autoplay.start === 'function') { window.__autoplay.start(); return 'window.__autoplay.start()'; }
+    const b = document.getElementById('autobtn');
+    if (b) { b.click(); return '#autobtn.click()'; }
+    return null;
+  });
+  if (!started) {
+    console.error('\nx this page has neither window.__autoplay.start() nor an #autobtn to click.');
+    console.error('  Nothing would drive the deck, so the recording would be a still frame. Stopping.');
+    process.exit(1);
+  }
+  console.log(`   autoplay started via ${started}`);
 
   const fd = fs.openSync(MASTER, 'w');
   let drained = 0;
@@ -343,7 +358,7 @@ if (!CONFORM_ONLY) {
     const el = (Date.now() - t0) / 1000;
     if (el >= MAXSEC) break;
     const s = await page.evaluate(() => ({
-      on: document.getElementById('autobtn').getAttribute('aria-pressed') === 'true',
+      on: window.__autoplay?.running ?? (document.getElementById('autobtn')?.getAttribute('aria-pressed') === 'true'),
       n: [...document.querySelectorAll('.slide')].indexOf(document.querySelector('.slide.active')) + 1,
       b: window.__recBytes(), f: window.__vfc.length,
     }));
